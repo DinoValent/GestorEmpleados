@@ -1,0 +1,252 @@
+import SendSummaryButton from "@/components/SendSummaryButton";
+import WeeklySummaryPanel from "@/components/WeeklySummaryPanel";
+import StackedHoursChart, { type HoursBar } from "@/components/charts/StackedHoursChart";
+import { listAttendance, listEmployees } from "@/lib/notion";
+
+const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function localISO(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function enumerateDays(dateFrom: string, dateTo: string): string[] {
+  const days: string[] = [];
+  const cursor = new Date(`${dateFrom}T00:00:00`);
+  const end = new Date(`${dateTo}T00:00:00`);
+  while (cursor <= end) {
+    days.push(localISO(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
+export const dynamic = "force-dynamic";
+
+function firstDayOfMonth(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+}
+
+function todayLocal(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default async function ReportesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dateFrom?: string; dateTo?: string; employeeId?: string }>;
+}) {
+  const sp = await searchParams;
+  const dateFrom = sp.dateFrom || firstDayOfMonth();
+  const dateTo = sp.dateTo || todayLocal();
+  const employeeId = sp.employeeId || "";
+
+  const [employees, records] = await Promise.all([
+    listEmployees(),
+    listAttendance({ dateFrom, dateTo, employeeId: employeeId || undefined }),
+  ]);
+
+  const employeeName = new Map(employees.map((e) => [e.id, e.nombre]));
+  const employeeEmail = new Map(employees.map((e) => [e.id, e.email]));
+
+  type Summary = {
+    employeeId: string;
+    nombre: string;
+    horasTrabajadas: number;
+    horasExtra: number;
+    tardanzas: number;
+    minutosTardanza: number;
+  };
+
+  const summaryMap = new Map<string, Summary>();
+  for (const r of records) {
+    const nombre = employeeName.get(r.employeeId) ?? r.registro;
+    const s = summaryMap.get(r.employeeId) ?? {
+      employeeId: r.employeeId,
+      nombre,
+      horasTrabajadas: 0,
+      horasExtra: 0,
+      tardanzas: 0,
+      minutosTardanza: 0,
+    };
+    s.horasTrabajadas += r.horasTrabajadas ?? 0;
+    s.horasExtra += r.horasExtra ?? 0;
+    if (r.llegadaTarde) {
+      s.tardanzas += 1;
+      s.minutosTardanza += r.minutosTardanza ?? 0;
+    }
+    summaryMap.set(r.employeeId, s);
+  }
+  const summary = Array.from(summaryMap.values()).sort(
+    (a, b) => b.horasExtra - a.horasExtra
+  );
+
+  const llegadasTarde = records
+    .filter((r) => r.llegadaTarde)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  let chartData: HoursBar[];
+  let chartTitle: string;
+  if (employeeId) {
+    const days = enumerateDays(dateFrom, dateTo);
+    const perDay = new Map(days.map((d) => [d, { regular: 0, extra: 0 }]));
+    for (const r of records) {
+      const entry = perDay.get(r.fecha);
+      if (!entry) continue;
+      const extra = r.horasExtra ?? 0;
+      entry.extra += extra;
+      entry.regular += Math.max(0, (r.horasTrabajadas ?? 0) - extra);
+    }
+    const compact = days.length > 7;
+    chartData = days.map((d) => {
+      const date = new Date(`${d}T00:00:00`);
+      const label = compact
+        ? `${date.getDate()}/${date.getMonth() + 1}`
+        : DIA_LABEL[date.getDay() === 0 ? 6 : date.getDay() - 1];
+      const entry = perDay.get(d)!;
+      return { key: d, label, regular: entry.regular, extra: entry.extra };
+    });
+    chartTitle = `Horas por día — ${employeeName.get(employeeId) ?? ""}`;
+  } else {
+    chartData = summary.map((s) => ({
+      key: s.employeeId,
+      label: s.nombre.split(" ")[0],
+      regular: Math.max(0, s.horasTrabajadas - s.horasExtra),
+      extra: s.horasExtra,
+    }));
+    chartTitle = "Horas por empleado";
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Reportes</h1>
+          <p className="mt-1 text-slate-500">
+            Horas extra y llegadas tarde por período y empleado.
+          </p>
+        </div>
+        <WeeklySummaryPanel
+          employees={employees.map((e) => ({ id: e.id, nombre: e.nombre }))}
+          defaultDateFrom={dateFrom}
+          defaultDateTo={dateTo}
+        />
+      </div>
+
+      <form className="card flex flex-wrap items-end gap-4" method="GET">
+        <div>
+          <label className="label">Desde</label>
+          <input type="date" name="dateFrom" defaultValue={dateFrom} className="input" />
+        </div>
+        <div>
+          <label className="label">Hasta</label>
+          <input type="date" name="dateTo" defaultValue={dateTo} className="input" />
+        </div>
+        <div>
+          <label className="label">Empleado</label>
+          <select name="employeeId" defaultValue={employeeId} className="input">
+            <option value="">Todos</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button type="submit" className="btn-primary">
+          Filtrar
+        </button>
+      </form>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">{chartTitle}</h2>
+        <div className="card">
+          <StackedHoursChart data={chartData} />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Horas por empleado</h2>
+        <div className="card overflow-x-auto p-0">
+          <table className="table-base">
+            <thead>
+              <tr>
+                <th>Empleado</th>
+                <th>Horas trabajadas</th>
+                <th>Horas extra</th>
+                <th>Llegadas tarde</th>
+                <th>Minutos de tardanza</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                    No hay fichajes en el período seleccionado.
+                  </td>
+                </tr>
+              )}
+              {summary.map((s) => (
+                <tr key={s.employeeId}>
+                  <td className="font-medium">{s.nombre}</td>
+                  <td>{s.horasTrabajadas.toFixed(2)}</td>
+                  <td>{s.horasExtra.toFixed(2)}</td>
+                  <td>{s.tardanzas}</td>
+                  <td>{s.minutosTardanza}</td>
+                  <td>
+                    <SendSummaryButton
+                      employeeId={s.employeeId}
+                      hasEmail={!!employeeEmail.get(s.employeeId)}
+                      dateFrom={dateFrom}
+                      dateTo={dateTo}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Detalle de llegadas tarde</h2>
+        <div className="card overflow-x-auto p-0">
+          <table className="table-base">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Empleado</th>
+                <th>Hora entrada</th>
+                <th>Minutos de tardanza</th>
+              </tr>
+            </thead>
+            <tbody>
+              {llegadasTarde.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-slate-400">
+                    Sin llegadas tarde en el período seleccionado.
+                  </td>
+                </tr>
+              )}
+              {llegadasTarde.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.fecha}</td>
+                  <td className="font-medium">
+                    {employeeName.get(r.employeeId) ?? r.registro}
+                  </td>
+                  <td>{r.horaEntrada}</td>
+                  <td>{r.minutosTardanza ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
