@@ -28,6 +28,9 @@ export default async function CalendarioPage({
   const view: View = sp.view === "day" || sp.view === "month" ? sp.view : "week";
 
   const employees = await listEmployees();
+  const activos = employees
+    .filter((e) => e.estado === "Activo")
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (view === "day") {
     const range = getDayRange(sp.ref);
@@ -42,7 +45,7 @@ export default async function CalendarioPage({
           nextRef={range.nextRef}
           count={records.length}
         />
-        <TimeGrid days={[range.date]} recordsByDay={groupByDay(records)} employees={employees} />
+        <TimeGrid days={[range.date]} recordsByDay={groupByDay(records)} employees={activos} />
       </div>
     );
   }
@@ -84,7 +87,7 @@ export default async function CalendarioPage({
         nextRef={range.nextRef}
         count={records.length}
       />
-      <TimeGrid days={range.days} recordsByDay={groupByDay(records)} employees={employees} />
+      <TimeGrid days={range.days} recordsByDay={groupByDay(records)} employees={activos} />
     </div>
   );
 }
@@ -106,41 +109,49 @@ function Header({
 }) {
   const VIEW_LABELS: Record<View, string> = { day: "Día", week: "Semana", month: "Mes" };
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Calendario de asistencia</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {count} fichaje{count === 1 ? "" : "s"} en este período
-          </p>
+    <div className="space-y-3">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Calendario de asistencia</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          {count} fichaje{count === 1 ? "" : "s"} en este período
+        </p>
+      </div>
+
+      <div className="card flex flex-wrap items-center justify-between gap-3 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/calendario?view=${view}&ref=${prevRef}`}
+              aria-label="Período anterior"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+            >
+              ‹
+            </Link>
+            <Link href={`/calendario?view=${view}`} className="btn-secondary">
+              Hoy
+            </Link>
+            <Link
+              href={`/calendario?view=${view}&ref=${nextRef}`}
+              aria-label="Período siguiente"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100"
+            >
+              ›
+            </Link>
+          </div>
+          <p className="text-base font-semibold text-slate-800">{label}</p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-slate-300 bg-white p-1">
+        <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
           {(["day", "week", "month"] as View[]).map((v) => (
             <Link
               key={v}
               href={`/calendario?view=${v}&ref=${refDate}`}
               className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                v === view ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"
+                v === view ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {VIEW_LABELS[v]}
             </Link>
           ))}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-lg font-semibold text-slate-800">{label}</p>
-        <div className="flex items-center gap-2">
-          <Link href={`/calendario?view=${view}&ref=${prevRef}`} className="btn-secondary">
-            ← Anterior
-          </Link>
-          <Link href={`/calendario?view=${view}`} className="btn-secondary">
-            Hoy
-          </Link>
-          <Link href={`/calendario?view=${view}&ref=${nextRef}`} className="btn-secondary">
-            Siguiente →
-          </Link>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import EmployeeForm from "@/components/EmployeeForm";
 import { getEmployee } from "@/lib/notion";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function EditarEmpleadoPage({
   params,

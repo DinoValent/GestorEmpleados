@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { listEmployees } from "@/lib/notion";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function EmpleadosPage() {
   const employees = await listEmployees();

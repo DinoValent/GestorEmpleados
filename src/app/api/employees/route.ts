@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createEmployee, listEmployees } from "@/lib/notion";
 import type { EmployeeInput } from "@/lib/types";
@@ -19,6 +20,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
     }
     const employee = await createEmployee(data);
+    revalidatePath("/empleados");
+    revalidatePath("/");
     return NextResponse.json(employee, { status: 201 });
   } catch (err) {
     console.error(err);

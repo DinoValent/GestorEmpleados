@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { checkIn } from "@/lib/notion";
 
@@ -8,6 +9,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Falta employeeId" }, { status: 400 });
     }
     const record = await checkIn(employeeId);
+    revalidatePath("/asistencia");
+    revalidatePath("/");
     return NextResponse.json(record, { status: 201 });
   } catch (err) {
     console.error(err);

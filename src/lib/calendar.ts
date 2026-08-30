@@ -255,7 +255,7 @@ export function layoutDayBlocks(
 }
 
 export function hourBounds(records: AttendanceRecord[]): { startHour: number; endHour: number } {
-  if (records.length === 0) return { startHour: 8, endHour: 20 };
+  if (records.length === 0) return { startHour: 9, endHour: 18 };
   let min = Infinity;
   let max = -Infinity;
   for (const r of records) {
@@ -263,7 +263,7 @@ export function hourBounds(records: AttendanceRecord[]): { startHour: number; en
     min = Math.min(min, startMin);
     max = Math.max(max, endMin);
   }
-  const startHour = Math.max(0, Math.floor(min / 60) - 1);
-  const endHour = Math.min(24, Math.ceil(max / 60) + 1);
-  return { startHour, endHour: Math.max(endHour, startHour + 4) };
+  const startHour = Math.max(0, Math.floor(min / 60));
+  const endHour = Math.min(24, Math.ceil(max / 60));
+  return { startHour, endHour: Math.max(endHour, startHour + 2) };
 }

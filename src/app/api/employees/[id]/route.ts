@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployee, updateEmployee } from "@/lib/notion";
 import type { EmployeeInput } from "@/lib/types";
@@ -27,6 +28,9 @@ export async function PATCH(
       return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
     }
     const employee = await updateEmployee(id, data);
+    revalidatePath("/empleados");
+    revalidatePath(`/empleados/${id}`);
+    revalidatePath("/");
     return NextResponse.json(employee);
   } catch (err) {
     console.error(err);

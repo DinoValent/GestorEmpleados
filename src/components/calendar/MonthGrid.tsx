@@ -43,6 +43,7 @@ export default function MonthGrid({
                 return acc + (endMin - startMin) / 60;
               }, 0);
               const employeeIds = Array.from(new Set(records.map((r) => r.employeeId)));
+              const hasLate = records.some((r) => r.llegadaTarde);
 
               return (
                 <Link
@@ -52,17 +53,25 @@ export default function MonthGrid({
                     inMonth ? "" : "bg-slate-50/60"
                   }`}
                 >
-                  <span
-                    className={`text-sm font-medium ${
-                      isToday
-                        ? "flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white"
-                        : inMonth
-                          ? "text-slate-700"
-                          : "text-slate-300"
-                    }`}
-                  >
-                    {date.getDate()}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-sm font-medium ${
+                        isToday
+                          ? "flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-white"
+                          : inMonth
+                            ? "text-slate-700"
+                            : "text-slate-300"
+                      }`}
+                    >
+                      {date.getDate()}
+                    </span>
+                    {hasLate && (
+                      <span
+                        className="h-2 w-2 rounded-full bg-red-500"
+                        title="Hubo llegadas tarde"
+                      />
+                    )}
+                  </div>
                   {records.length > 0 && (
                     <>
                       <p className="font-mono text-xs font-semibold text-slate-600">

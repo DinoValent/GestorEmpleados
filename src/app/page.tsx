@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 function monthRange(): { from: string; to: string } {
   const now = new Date();
