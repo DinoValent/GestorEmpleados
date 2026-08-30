@@ -23,13 +23,15 @@ function getLocation(): Promise<{ lat: number; lon: number; accuracy: number } |
   });
 }
 
-function locationMessage(coords: { accuracy: number } | null): string {
-  if (!coords) return "No se pudo obtener tu ubicación, se fichó igual.";
+function locationMessage(coords: { accuracy: number }): string {
   if (coords.accuracy > 500) {
     return `Ubicación registrada, pero con poca precisión (±${coords.accuracy} m). Si fichaste desde una compu, es normal — desde el celular suele ser mucho más exacta.`;
   }
   return `Ubicación registrada (±${coords.accuracy} m).`;
 }
+
+const LOCATION_BLOCKED_MESSAGE =
+  "No pudimos obtener tu ubicación. Activá el permiso de ubicación en el navegador e intentá de nuevo — sin ubicación no se puede fichar.";
 
 export default function CheckInWidget({
   employeeName,
@@ -41,6 +43,7 @@ export default function CheckInWidget({
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [locationNote, setLocationNote] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const openRecord = records.find((r) => !r.horaSalida);
   const sorted = [...records].sort((a, b) => b.horaEntrada.localeCompare(a.horaEntrada));
@@ -49,11 +52,16 @@ export default function CheckInWidget({
   async function fichar(kind: "checkin" | "checkout") {
     setPending(true);
     setLocationNote(null);
+    setLocationError(null);
     try {
       let body: Record<string, unknown> = {};
       if (kind === "checkin") {
         const coords = await getLocation();
-        body = coords ?? {};
+        if (!coords) {
+          setLocationError(LOCATION_BLOCKED_MESSAGE);
+          return;
+        }
+        body = coords;
         setLocationNote(locationMessage(coords));
       } else if (openRecord) {
         body = { recordId: openRecord.id };
@@ -65,7 +73,11 @@ export default function CheckInWidget({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "No se pudo registrar el fichaje");
+        if (kind === "checkin") {
+          setLocationError(data.error || LOCATION_BLOCKED_MESSAGE);
+        } else {
+          alert(data.error || "No se pudo registrar el fichaje");
+        }
         return;
       }
       router.refresh();
@@ -107,6 +119,11 @@ export default function CheckInWidget({
                 {pending ? "Registrando..." : "Fichar entrada"}
               </button>
             </>
+          )}
+          {locationError && (
+            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+              {locationError}
+            </p>
           )}
           {locationNote && <p className="mt-3 text-xs text-slate-400">{locationNote}</p>}
         </div>

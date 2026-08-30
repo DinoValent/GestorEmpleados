@@ -15,10 +15,13 @@ export async function POST(req: NextRequest) {
       lon?: number;
       accuracy?: number;
     };
-    const coords =
-      typeof lat === "number" && typeof lon === "number"
-        ? { lat, lon, accuracy: typeof accuracy === "number" ? accuracy : undefined }
-        : undefined;
+    if (typeof lat !== "number" || typeof lon !== "number") {
+      return NextResponse.json(
+        { error: "Necesitamos tu ubicación para fichar la entrada. Activá el permiso de ubicación e intentá de nuevo." },
+        { status: 400 }
+      );
+    }
+    const coords = { lat, lon, accuracy: typeof accuracy === "number" ? accuracy : undefined };
     const record = await checkIn(employeeId, coords);
     revalidatePath("/mi-fichaje");
     revalidatePath("/asistencia");
