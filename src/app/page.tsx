@@ -4,11 +4,10 @@ import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
 export const revalidate = 30;
 
 function monthRange(): { from: string; to: string } {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  return { from: fmt(from), to: fmt(to) };
+  const [y, m] = todayISO().split("-").map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(lastDay)}` };
 }
 
 export default async function Home() {

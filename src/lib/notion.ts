@@ -11,6 +11,7 @@ import type {
   EmployeeInput,
   Rol,
 } from "./types";
+import { nowHHMM, todayISO } from "./timezone";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
@@ -113,16 +114,7 @@ function toMinutes(hhmm: string): number | null {
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
-export function nowHHMM(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-export function todayISO(): string {
-  const d = new Date();
-  const tzOffsetMs = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
-}
+export { nowHHMM, todayISO };
 
 // ---------- employees ----------
 

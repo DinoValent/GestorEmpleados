@@ -1,3 +1,5 @@
+import { todayISO } from "./timezone";
+
 const MESES = [
   "enero",
   "febrero",
@@ -31,7 +33,7 @@ export interface QuincenaRange {
 }
 
 export function getQuincenaRange(refISO?: string): QuincenaRange {
-  const ref = refISO ? new Date(`${refISO}T00:00:00`) : new Date();
+  const ref = new Date(`${refISO ?? todayISO()}T00:00:00`);
   const y = ref.getFullYear();
   const m = ref.getMonth();
   const d = ref.getDate();

@@ -1,4 +1,4 @@
-import { absenceOnDate, recordSpan, toISO } from "@/lib/calendar";
+import { absenceOnDate, recordSpan, todayISO } from "@/lib/calendar";
 import type { Absence, AttendanceRecord, Employee } from "@/lib/types";
 
 const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
@@ -137,7 +137,7 @@ function DayTimeline({
   const { startHour, endHour } = hourBoundsFor(records);
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
   const trackWidth = hours.length * HOUR_WIDTH;
-  const isToday = date === toISO(new Date());
+  const isToday = date === todayISO();
 
   return (
     <div style={{ minWidth: NAME_COL + trackWidth }}>
@@ -231,7 +231,7 @@ function WeekRoster({
   employees: Employee[];
   absences: Absence[];
 }) {
-  const today = toISO(new Date());
+  const today = todayISO();
 
   return (
     <div style={{ minWidth: NAME_COL + days.length * 128 }}>

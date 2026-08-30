@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { colorForEmployee, recordSpan, toISO } from "@/lib/calendar";
+import { colorForEmployee, recordSpan, todayISO } from "@/lib/calendar";
 import type { AttendanceRecord, Employee } from "@/lib/types";
 
 const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
@@ -15,7 +15,7 @@ export default function MonthGrid({
   recordsByDay: Map<string, AttendanceRecord[]>;
   employees: Employee[];
 }) {
-  const today = toISO(new Date());
+  const today = todayISO();
 
   return (
     <div className="card p-0">

@@ -1,4 +1,7 @@
 import type { Absence, AttendanceRecord } from "./types";
+import { nowHHMM, todayISO } from "./timezone";
+
+export { todayISO };
 
 export function absenceOnDate(
   absences: Absence[],
@@ -8,16 +11,6 @@ export function absenceOnDate(
   return absences.find(
     (a) => a.employeeId === employeeId && date >= a.fechaInicio && date <= a.fechaFin
   );
-}
-
-function nowHHMM(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function todayISO(): string {
-  const d = new Date();
-  return toISO(d);
 }
 
 const MESES = [
@@ -44,6 +37,11 @@ export function toISO(date: Date): string {
 
 function parseISO(iso: string): Date {
   return new Date(`${iso}T00:00:00`);
+}
+
+/** A local Date for "today" in Argentina, not the server's own timezone. */
+function todayAsDate(): Date {
+  return parseISO(todayISO());
 }
 
 export function toMinutes(hhmm: string): number | null {
@@ -84,7 +82,7 @@ export interface DayRange {
 }
 
 export function getDayRange(refISO?: string): DayRange {
-  const ref = refISO ? parseISO(refISO) : new Date();
+  const ref = refISO ? parseISO(refISO) : todayAsDate();
   const prev = new Date(ref);
   prev.setDate(ref.getDate() - 1);
   const next = new Date(ref);
@@ -115,7 +113,7 @@ export interface WeekRange {
 }
 
 export function getWeekRange(refISO?: string): WeekRange {
-  const ref = refISO ? parseISO(refISO) : new Date();
+  const ref = refISO ? parseISO(refISO) : todayAsDate();
   const monday = startOfWeek(ref);
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
@@ -159,7 +157,7 @@ export interface MonthRange {
 }
 
 export function getMonthRange(refISO?: string): MonthRange {
-  const ref = refISO ? parseISO(refISO) : new Date();
+  const ref = refISO ? parseISO(refISO) : todayAsDate();
   const year = ref.getFullYear();
   const month = ref.getMonth();
   const firstOfMonth = new Date(year, month, 1);

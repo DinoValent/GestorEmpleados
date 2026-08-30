@@ -1,39 +1,19 @@
 import SendSummaryButton from "@/components/SendSummaryButton";
 import WeeklySummaryPanel from "@/components/WeeklySummaryPanel";
 import StackedHoursChart, { type HoursBar } from "@/components/charts/StackedHoursChart";
+import { dailyHoursChart } from "@/lib/chartData";
 import { DEFAULT_COST_PARAMS, estimateCost } from "@/lib/cost";
-import { listAttendance, listEmployees } from "@/lib/notion";
-
-const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
-
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-function localISO(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function enumerateDays(dateFrom: string, dateTo: string): string[] {
-  const days: string[] = [];
-  const cursor = new Date(`${dateFrom}T00:00:00`);
-  const end = new Date(`${dateTo}T00:00:00`);
-  while (cursor <= end) {
-    days.push(localISO(cursor));
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return days;
-}
+import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
 
 export const dynamic = "force-dynamic";
 
 function firstDayOfMonth(): string {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const [y, m] = todayISO().split("-");
+  return `${y}-${m}-01`;
 }
 
 function todayLocal(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayISO();
 }
 
 export default async function ReportesPage({
@@ -117,24 +97,7 @@ export default async function ReportesPage({
   let chartData: HoursBar[];
   let chartTitle: string;
   if (employeeId) {
-    const days = enumerateDays(dateFrom, dateTo);
-    const perDay = new Map(days.map((d) => [d, { regular: 0, extra: 0 }]));
-    for (const r of records) {
-      const entry = perDay.get(r.fecha);
-      if (!entry) continue;
-      const extra = r.horasExtra ?? 0;
-      entry.extra += extra;
-      entry.regular += Math.max(0, (r.horasTrabajadas ?? 0) - extra);
-    }
-    const compact = days.length > 7;
-    chartData = days.map((d) => {
-      const date = new Date(`${d}T00:00:00`);
-      const label = compact
-        ? `${date.getDate()}/${date.getMonth() + 1}`
-        : DIA_LABEL[date.getDay() === 0 ? 6 : date.getDay() - 1];
-      const entry = perDay.get(d)!;
-      return { key: d, label, regular: entry.regular, extra: entry.extra };
-    });
+    chartData = dailyHoursChart(records, dateFrom, dateTo);
     chartTitle = `Horas por día — ${employeeName.get(employeeId) ?? ""}`;
   } else {
     chartData = summary.map((s) => ({
