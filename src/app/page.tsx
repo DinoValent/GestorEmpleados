@@ -41,11 +41,15 @@ export default async function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {stats.map((s) => (
-          <Link key={s.label} href={s.href} className="card hover:border-slate-300">
-            <p className="text-sm text-slate-500">{s.label}</p>
-            <p className="mt-2 text-3xl font-semibold">{s.value}</p>
+          <Link
+            key={s.label}
+            href={s.href}
+            className="card p-4 hover:border-slate-300 sm:p-6"
+          >
+            <p className="text-xs text-slate-500 sm:text-sm">{s.label}</p>
+            <p className="mt-2 text-2xl font-semibold sm:text-3xl">{s.value}</p>
           </Link>
         ))}
       </div>
