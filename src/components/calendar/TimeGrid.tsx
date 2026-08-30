@@ -1,5 +1,5 @@
-import { recordSpan, toISO } from "@/lib/calendar";
-import type { AttendanceRecord, Employee } from "@/lib/types";
+import { absenceOnDate, recordSpan, toISO } from "@/lib/calendar";
+import type { Absence, AttendanceRecord, Employee } from "@/lib/types";
 
 const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
 const NAME_COL = 160;
@@ -48,10 +48,12 @@ export default function TimeGrid({
   days,
   recordsByDay,
   employees,
+  absences = [],
 }: {
   days: string[];
   recordsByDay: Map<string, AttendanceRecord[]>;
   employees: Employee[];
+  absences?: Absence[];
 }) {
   const isWeek = days.length > 1;
 
@@ -67,11 +69,31 @@ export default function TimeGrid({
     <div className="card p-0">
       <div className="overflow-x-auto">
         {isWeek ? (
-          <WeekRoster days={days} recordsByDay={recordsByDay} employees={employees} />
+          <WeekRoster days={days} recordsByDay={recordsByDay} employees={employees} absences={absences} />
         ) : (
-          <DayTimeline date={days[0]} records={recordsByDay.get(days[0]) ?? []} employees={employees} />
+          <DayTimeline
+            date={days[0]}
+            records={recordsByDay.get(days[0]) ?? []}
+            employees={employees}
+            absences={absences}
+          />
         )}
       </div>
+    </div>
+  );
+}
+
+function absenceLabel(a: Absence): string {
+  return a.tipo === "Licencia medica" ? "Lic. médica" : a.tipo === "Licencia personal" ? "Lic. personal" : a.tipo;
+}
+
+function AbsenceChip({ absence }: { absence: Absence }) {
+  return (
+    <div
+      className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-1.5 py-1 text-center text-[11px] font-medium italic text-slate-500"
+      title={absenceLabel(absence)}
+    >
+      {absenceLabel(absence)}
     </div>
   );
 }
@@ -105,10 +127,12 @@ function DayTimeline({
   date,
   records,
   employees,
+  absences,
 }: {
   date: string;
   records: AttendanceRecord[];
   employees: Employee[];
+  absences: Absence[];
 }) {
   const { startHour, endHour } = hourBoundsFor(records);
   const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -135,6 +159,7 @@ function DayTimeline({
 
       {employees.map((emp) => {
         const empRecords = records.filter((r) => r.employeeId === emp.id);
+        const absence = absenceOnDate(absences, emp.id, date);
         return (
           <div key={emp.id} className="flex border-b border-slate-100 last:border-b-0">
             <div
@@ -154,7 +179,12 @@ function DayTimeline({
                   style={{ left: (h - startHour) * HOUR_WIDTH }}
                 />
               ))}
-              {empRecords.length === 0 && (
+              {empRecords.length === 0 && absence && (
+                <div className="absolute inset-1.5 flex items-center">
+                  <AbsenceChip absence={absence} />
+                </div>
+              )}
+              {empRecords.length === 0 && !absence && (
                 <span className="absolute inset-0 flex items-center px-3 text-xs text-slate-300">
                   Sin fichaje
                 </span>
@@ -194,10 +224,12 @@ function WeekRoster({
   days,
   recordsByDay,
   employees,
+  absences,
 }: {
   days: string[];
   recordsByDay: Map<string, AttendanceRecord[]>;
   employees: Employee[];
+  absences: Absence[];
 }) {
   const today = toISO(new Date());
 
@@ -238,6 +270,7 @@ function WeekRoster({
           {days.map((d) => {
             const dayRecords = (recordsByDay.get(d) ?? []).filter((r) => r.employeeId === emp.id);
             const isToday = d === today;
+            const absence = dayRecords.length === 0 ? absenceOnDate(absences, emp.id, d) : undefined;
             return (
               <div
                 key={d}
@@ -246,7 +279,11 @@ function WeekRoster({
                 }`}
               >
                 {dayRecords.length === 0 ? (
-                  <span className="text-center text-sm text-slate-200">–</span>
+                  absence ? (
+                    <AbsenceChip absence={absence} />
+                  ) : (
+                    <span className="text-center text-sm text-slate-200">–</span>
+                  )
                 ) : (
                   dayRecords.map((r) => {
                     const style = STATUS_STYLE[statusOf(r)];

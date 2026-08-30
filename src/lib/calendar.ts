@@ -1,4 +1,14 @@
-import type { AttendanceRecord } from "./types";
+import type { Absence, AttendanceRecord } from "./types";
+
+export function absenceOnDate(
+  absences: Absence[],
+  employeeId: string,
+  date: string
+): Absence | undefined {
+  return absences.find(
+    (a) => a.employeeId === employeeId && date >= a.fechaInicio && date <= a.fechaFin
+  );
+}
 
 function nowHHMM(): string {
   const d = new Date();

@@ -2,7 +2,7 @@ import Link from "next/link";
 import MonthGrid from "@/components/calendar/MonthGrid";
 import TimeGrid from "@/components/calendar/TimeGrid";
 import { getDayRange, getMonthRange, getWeekRange } from "@/lib/calendar";
-import { listAttendance, listEmployees } from "@/lib/notion";
+import { listAbsences, listAttendance, listEmployees } from "@/lib/notion";
 import type { AttendanceRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,10 @@ export default async function CalendarioPage({
 
   if (view === "day") {
     const range = getDayRange(sp.ref);
-    const records = await listAttendance({ dateFrom: range.date, dateTo: range.date });
+    const [records, absences] = await Promise.all([
+      listAttendance({ dateFrom: range.date, dateTo: range.date }),
+      listAbsences({ dateFrom: range.date, dateTo: range.date }),
+    ]);
     return (
       <div className="space-y-6">
         <Header
@@ -45,7 +48,12 @@ export default async function CalendarioPage({
           nextRef={range.nextRef}
           count={records.length}
         />
-        <TimeGrid days={[range.date]} recordsByDay={groupByDay(records)} employees={activos} />
+        <TimeGrid
+          days={[range.date]}
+          recordsByDay={groupByDay(records)}
+          employees={activos}
+          absences={absences}
+        />
       </div>
     );
   }
@@ -76,7 +84,10 @@ export default async function CalendarioPage({
   }
 
   const range = getWeekRange(sp.ref);
-  const records = await listAttendance({ dateFrom: range.from, dateTo: range.to });
+  const [records, absences] = await Promise.all([
+    listAttendance({ dateFrom: range.from, dateTo: range.to }),
+    listAbsences({ dateFrom: range.from, dateTo: range.to }),
+  ]);
   return (
     <div className="space-y-6">
       <Header
@@ -87,7 +98,12 @@ export default async function CalendarioPage({
         nextRef={range.nextRef}
         count={records.length}
       />
-      <TimeGrid days={range.days} recordsByDay={groupByDay(records)} employees={activos} />
+      <TimeGrid
+        days={range.days}
+        recordsByDay={groupByDay(records)}
+        employees={activos}
+        absences={absences}
+      />
     </div>
   );
 }

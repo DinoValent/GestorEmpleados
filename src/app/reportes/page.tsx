@@ -1,6 +1,7 @@
 import SendSummaryButton from "@/components/SendSummaryButton";
 import WeeklySummaryPanel from "@/components/WeeklySummaryPanel";
 import StackedHoursChart, { type HoursBar } from "@/components/charts/StackedHoursChart";
+import { DEFAULT_COST_PARAMS, estimateCost } from "@/lib/cost";
 import { listAttendance, listEmployees } from "@/lib/notion";
 
 const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
@@ -38,12 +39,22 @@ function todayLocal(): string {
 export default async function ReportesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dateFrom?: string; dateTo?: string; employeeId?: string }>;
+  searchParams: Promise<{
+    dateFrom?: string;
+    dateTo?: string;
+    employeeId?: string;
+    horasBase?: string;
+    multiplicador?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const dateFrom = sp.dateFrom || firstDayOfMonth();
   const dateTo = sp.dateTo || todayLocal();
   const employeeId = sp.employeeId || "";
+  const costParams = {
+    horasBase: Number(sp.horasBase) || DEFAULT_COST_PARAMS.horasBase,
+    multiplicador: Number(sp.multiplicador) || DEFAULT_COST_PARAMS.multiplicador,
+  };
 
   const [employees, records] = await Promise.all([
     listEmployees(),
@@ -52,6 +63,7 @@ export default async function ReportesPage({
 
   const employeeName = new Map(employees.map((e) => [e.id, e.nombre]));
   const employeeEmail = new Map(employees.map((e) => [e.id, e.email]));
+  const employeeSalario = new Map(employees.map((e) => [e.id, e.salarioBase]));
 
   type Summary = {
     employeeId: string;
@@ -84,6 +96,19 @@ export default async function ReportesPage({
   const summary = Array.from(summaryMap.values()).sort(
     (a, b) => b.horasExtra - a.horasExtra
   );
+  const costos = new Map<string, number | null>(
+    summary.map((s) => [
+      s.employeeId,
+      estimateCost(employeeSalario.get(s.employeeId) ?? null, s.horasTrabajadas, s.horasExtra, costParams),
+    ])
+  );
+  const totalCosto = Array.from(costos.values()).reduce(
+    (acc: number, c) => acc + (c ?? 0),
+    0
+  );
+  const exportUrl = `/api/reportes/export?dateFrom=${dateFrom}&dateTo=${dateTo}${
+    employeeId ? `&employeeId=${employeeId}` : ""
+  }&horasBase=${costParams.horasBase}&multiplicador=${costParams.multiplicador}`;
 
   const llegadasTarde = records
     .filter((r) => r.llegadaTarde)
@@ -157,9 +182,31 @@ export default async function ReportesPage({
             ))}
           </select>
         </div>
+        <div>
+          <label className="label">Hs. base mensuales</label>
+          <input
+            type="number"
+            name="horasBase"
+            defaultValue={costParams.horasBase}
+            className="input w-28"
+          />
+        </div>
+        <div>
+          <label className="label">Multiplicador extra</label>
+          <input
+            type="number"
+            step="0.1"
+            name="multiplicador"
+            defaultValue={costParams.multiplicador}
+            className="input w-28"
+          />
+        </div>
         <button type="submit" className="btn-primary">
           Filtrar
         </button>
+        <a href={exportUrl} className="btn-secondary">
+          Exportar CSV
+        </a>
       </form>
 
       <div>
@@ -171,6 +218,11 @@ export default async function ReportesPage({
 
       <div>
         <h2 className="mb-3 text-lg font-semibold">Horas por empleado</h2>
+        <p className="mb-3 text-xs text-slate-400">
+          El costo estimado es una aproximación: sueldo base ÷ {costParams.horasBase} hs
+          + horas extra × {costParams.multiplicador}. No reemplaza el cálculo real de
+          nómina.
+        </p>
         <div className="card overflow-x-auto p-0">
           <table className="table-base">
             <thead>
@@ -180,35 +232,61 @@ export default async function ReportesPage({
                 <th>Horas extra</th>
                 <th>Llegadas tarde</th>
                 <th>Minutos de tardanza</th>
+                <th>Costo estimado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {summary.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
                     No hay fichajes en el período seleccionado.
                   </td>
                 </tr>
               )}
-              {summary.map((s) => (
-                <tr key={s.employeeId}>
-                  <td className="font-medium">{s.nombre}</td>
-                  <td>{s.horasTrabajadas.toFixed(2)}</td>
-                  <td>{s.horasExtra.toFixed(2)}</td>
-                  <td>{s.tardanzas}</td>
-                  <td>{s.minutosTardanza}</td>
-                  <td>
-                    <SendSummaryButton
-                      employeeId={s.employeeId}
-                      hasEmail={!!employeeEmail.get(s.employeeId)}
-                      dateFrom={dateFrom}
-                      dateTo={dateTo}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {summary.map((s) => {
+                const costo = costos.get(s.employeeId) ?? null;
+                return (
+                  <tr key={s.employeeId}>
+                    <td className="font-medium">{s.nombre}</td>
+                    <td>{s.horasTrabajadas.toFixed(2)}</td>
+                    <td>{s.horasExtra.toFixed(2)}</td>
+                    <td>{s.tardanzas}</td>
+                    <td>{s.minutosTardanza}</td>
+                    <td>
+                      {costo === null ? (
+                        <span className="text-slate-300">—</span>
+                      ) : (
+                        `$${costo.toLocaleString("es-AR", { maximumFractionDigits: 0 })}`
+                      )}
+                    </td>
+                    <td>
+                      <SendSummaryButton
+                        employeeId={s.employeeId}
+                        hasEmail={!!employeeEmail.get(s.employeeId)}
+                        dateFrom={dateFrom}
+                        dateTo={dateTo}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
+            {summary.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td className="font-semibold">Total</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td className="font-semibold">
+                    ${totalCosto.toLocaleString("es-AR", { maximumFractionDigits: 0 })}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

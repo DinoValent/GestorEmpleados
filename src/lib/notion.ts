@@ -1,7 +1,16 @@
 import { Client } from "@notionhq/client";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import type { PropertyFilter } from "@notionhq/client/build/src/api-endpoints/common";
-import type { AttendanceRecord, Employee, EmployeeInput } from "./types";
+import type {
+  Absence,
+  AbsenceInput,
+  AbsenceType,
+  AppUser,
+  AttendanceRecord,
+  Employee,
+  EmployeeInput,
+  Rol,
+} from "./types";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
@@ -9,6 +18,10 @@ const EMPLOYEES_DB = process.env.NOTION_EMPLOYEES_DB_ID as string;
 const ATTENDANCE_DB = process.env.NOTION_ATTENDANCE_DB_ID as string;
 const EMPLOYEES_DS = process.env.NOTION_EMPLOYEES_DATA_SOURCE_ID as string;
 const ATTENDANCE_DS = process.env.NOTION_ATTENDANCE_DATA_SOURCE_ID as string;
+const ABSENCES_DB = process.env.NOTION_ABSENCES_DB_ID as string;
+const ABSENCES_DS = process.env.NOTION_ABSENCES_DATA_SOURCE_ID as string;
+const USERS_DB = process.env.NOTION_USERS_DB_ID as string;
+const USERS_DS = process.env.NOTION_USERS_DATA_SOURCE_ID as string;
 
 // ---------- helpers ----------
 
@@ -88,6 +101,9 @@ function mapAttendance(page: PageObjectResponse): AttendanceRecord {
     llegadaTarde: checkboxVal(page, "Llegada tarde"),
     minutosTardanza: numberVal(page, "Minutos de tardanza"),
     observaciones: text(page, "Observaciones"),
+    latitud: numberVal(page, "Latitud"),
+    longitud: numberVal(page, "Longitud"),
+    precision: numberVal(page, "Precision"),
   };
 }
 
@@ -243,7 +259,10 @@ export async function findOpenAttendance(
   return page ? mapAttendance(page) : null;
 }
 
-export async function checkIn(employeeId: string): Promise<AttendanceRecord> {
+export async function checkIn(
+  employeeId: string,
+  coords?: { lat: number; lon: number; accuracy?: number }
+): Promise<AttendanceRecord> {
   const employee = await getEmployee(employeeId);
   const date = todayISO();
 
@@ -273,6 +292,9 @@ export async function checkIn(employeeId: string): Promise<AttendanceRecord> {
       "Hora entrada": { rich_text: [{ text: { content: horaEntrada } }] },
       "Llegada tarde": { checkbox: llegadaTarde },
       "Minutos de tardanza": { number: minutosTardanza },
+      Latitud: { number: coords?.lat ?? null },
+      Longitud: { number: coords?.lon ?? null },
+      Precision: { number: coords?.accuracy ?? null },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
   })) as PageObjectResponse;
@@ -280,31 +302,85 @@ export async function checkIn(employeeId: string): Promise<AttendanceRecord> {
   return mapAttendance(page);
 }
 
+interface DerivedAttendance {
+  llegadaTarde: boolean;
+  minutosTardanza: number;
+  horasTrabajadas: number | null;
+  horasExtra: number | null;
+}
+
+function computeDerived(
+  employee: Employee,
+  horaEntrada: string,
+  horaSalida: string | null
+): DerivedAttendance {
+  const entradaMin = toMinutes(horaEntrada);
+  const habitualEntradaMin = toMinutes(employee.horarioEntrada);
+
+  let llegadaTarde = false;
+  let minutosTardanza = 0;
+  if (entradaMin !== null && habitualEntradaMin !== null) {
+    const diff = entradaMin - habitualEntradaMin;
+    if (diff > 0) {
+      llegadaTarde = true;
+      minutosTardanza = diff;
+    }
+  }
+
+  let horasTrabajadas: number | null = null;
+  let horasExtra: number | null = null;
+  const salidaMin = horaSalida ? toMinutes(horaSalida) : null;
+  if (entradaMin !== null && salidaMin !== null) {
+    horasTrabajadas = Math.max(0, Math.round(((salidaMin - entradaMin) / 60) * 100) / 100);
+    const habitualSalidaMin = toMinutes(employee.horarioSalida);
+    const jornadaEstandar =
+      habitualEntradaMin !== null && habitualSalidaMin !== null
+        ? Math.max(0, (habitualSalidaMin - habitualEntradaMin) / 60)
+        : 8;
+    horasExtra = Math.max(0, Math.round((horasTrabajadas - jornadaEstandar) * 100) / 100);
+  }
+
+  return { llegadaTarde, minutosTardanza, horasTrabajadas, horasExtra };
+}
+
 export async function checkOut(recordId: string): Promise<AttendanceRecord> {
   const page = (await notion.pages.retrieve({ page_id: recordId })) as PageObjectResponse;
   const record = mapAttendance(page);
   const employee = await getEmployee(record.employeeId);
-
   const horaSalida = nowHHMM();
-  const entradaMin = toMinutes(record.horaEntrada)!;
-  const salidaMin = toMinutes(horaSalida)!;
-  const horasTrabajadas = Math.max(0, Math.round(((salidaMin - entradaMin) / 60) * 100) / 100);
-
-  const habitualEntradaMin = toMinutes(employee.horarioEntrada);
-  const habitualSalidaMin = toMinutes(employee.horarioSalida);
-  const jornadaEstandar =
-    habitualEntradaMin !== null && habitualSalidaMin !== null
-      ? Math.max(0, (habitualSalidaMin - habitualEntradaMin) / 60)
-      : 8;
-
-  const horasExtra = Math.max(0, Math.round((horasTrabajadas - jornadaEstandar) * 100) / 100);
+  const derived = computeDerived(employee, record.horaEntrada, horaSalida);
 
   const updated = (await notion.pages.update({
     page_id: recordId,
     properties: {
       "Hora salida": { rich_text: [{ text: { content: horaSalida } }] },
-      "Horas trabajadas": { number: horasTrabajadas },
-      "Horas extra": { number: horasExtra },
+      "Horas trabajadas": { number: derived.horasTrabajadas },
+      "Horas extra": { number: derived.horasExtra },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  })) as PageObjectResponse;
+
+  return mapAttendance(updated);
+}
+
+export async function updateAttendanceTimes(
+  recordId: string,
+  horaEntrada: string,
+  horaSalida: string | null
+): Promise<AttendanceRecord> {
+  const record = await getAttendanceRecord(recordId);
+  const employee = await getEmployee(record.employeeId);
+  const derived = computeDerived(employee, horaEntrada, horaSalida);
+
+  const updated = (await notion.pages.update({
+    page_id: recordId,
+    properties: {
+      "Hora entrada": { rich_text: [{ text: { content: horaEntrada } }] },
+      "Hora salida": horaSalida ? { rich_text: [{ text: { content: horaSalida } }] } : { rich_text: [] },
+      "Horas trabajadas": { number: derived.horasTrabajadas },
+      "Horas extra": { number: derived.horasExtra },
+      "Llegada tarde": { checkbox: derived.llegadaTarde },
+      "Minutos de tardanza": { number: derived.minutosTardanza },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
   })) as PageObjectResponse;
@@ -324,4 +400,135 @@ export async function updateAttendanceNotes(
     } as any,
   })) as PageObjectResponse;
   return mapAttendance(updated);
+}
+
+// ---------- absences ----------
+
+function mapAbsence(page: PageObjectResponse): Absence {
+  return {
+    id: page.id,
+    employeeId: relationFirstId(page, "Empleado"),
+    fechaInicio: dateVal(page, "Fecha inicio") ?? "",
+    fechaFin: dateVal(page, "Fecha fin") ?? "",
+    tipo: (selectVal(page, "Tipo") || "Vacaciones") as AbsenceType,
+    observaciones: text(page, "Observaciones"),
+  };
+}
+
+export interface AbsenceFilters {
+  employeeId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export async function listAbsences(filters: AbsenceFilters = {}): Promise<Absence[]> {
+  const andFilters: PropertyFilter[] = [];
+  if (filters.employeeId) {
+    andFilters.push({ property: "Empleado", relation: { contains: filters.employeeId } });
+  }
+  if (filters.dateFrom) {
+    andFilters.push({ property: "Fecha fin", date: { on_or_after: filters.dateFrom } });
+  }
+  if (filters.dateTo) {
+    andFilters.push({ property: "Fecha inicio", date: { on_or_before: filters.dateTo } });
+  }
+
+  const filter =
+    andFilters.length === 0
+      ? undefined
+      : andFilters.length === 1
+        ? andFilters[0]
+        : { and: andFilters };
+
+  const results: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.dataSources.query({
+      data_source_id: ABSENCES_DS,
+      start_cursor: cursor ?? undefined,
+      filter,
+      sorts: [{ property: "Fecha inicio", direction: "descending" }],
+    });
+    results.push(...(res.results as PageObjectResponse[]));
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results.map(mapAbsence);
+}
+
+export async function createAbsence(data: AbsenceInput): Promise<Absence> {
+  const page = (await notion.pages.create({
+    parent: { database_id: ABSENCES_DB },
+    properties: {
+      Titulo: { title: [{ text: { content: `${data.tipo} · ${data.fechaInicio}` } }] },
+      Empleado: { relation: [{ id: data.employeeId }] },
+      "Fecha inicio": { date: { start: data.fechaInicio } },
+      "Fecha fin": { date: { start: data.fechaFin } },
+      Tipo: { select: { name: data.tipo } },
+      Observaciones: { rich_text: [{ text: { content: data.observaciones } }] },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  })) as PageObjectResponse;
+  return mapAbsence(page);
+}
+
+// ---------- users ----------
+
+function mapUser(page: PageObjectResponse): AppUser {
+  return {
+    id: page.id,
+    email: text(page, "Email").toLowerCase(),
+    passwordHash: text(page, "Password hash"),
+    rol: (selectVal(page, "Rol") || "Empleado") as Rol,
+    employeeId: relationFirstId(page, "Empleado") || null,
+  };
+}
+
+export async function getUserByEmail(email: string): Promise<AppUser | null> {
+  const res = await notion.dataSources.query({
+    data_source_id: USERS_DS,
+    filter: {
+      property: "Email",
+      title: { equals: email.toLowerCase() },
+    },
+  });
+  const page = res.results[0] as PageObjectResponse | undefined;
+  return page ? mapUser(page) : null;
+}
+
+export async function listUsers(): Promise<AppUser[]> {
+  const results: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.dataSources.query({
+      data_source_id: USERS_DS,
+      start_cursor: cursor ?? undefined,
+    });
+    results.push(...(res.results as PageObjectResponse[]));
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results.map(mapUser);
+}
+
+export async function upsertUser(data: {
+  email: string;
+  passwordHash: string;
+  rol: Rol;
+  employeeId: string | null;
+}): Promise<AppUser> {
+  const existing = await getUserByEmail(data.email);
+  const properties = {
+    Email: { title: [{ text: { content: data.email.toLowerCase() } }] },
+    "Password hash": { rich_text: [{ text: { content: data.passwordHash } }] },
+    Rol: { select: { name: data.rol } },
+    Empleado: data.employeeId ? { relation: [{ id: data.employeeId }] } : { relation: [] },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+
+  const page = existing
+    ? ((await notion.pages.update({ page_id: existing.id, properties })) as PageObjectResponse)
+    : ((await notion.pages.create({
+        parent: { database_id: USERS_DB },
+        properties,
+      })) as PageObjectResponse);
+  return mapUser(page);
 }

@@ -4,17 +4,28 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { AttendanceRecord, Employee } from "@/lib/types";
 
+interface TimeDraft {
+  horaEntrada: string;
+  horaSalida: string;
+}
+
 export default function AttendanceBoard({
   employees,
   records,
+  isToday = true,
+  dateLabel,
 }: {
   employees: Employee[];
   records: AttendanceRecord[];
+  isToday?: boolean;
+  dateLabel?: string;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [savingTimes, setSavingTimes] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [timeDrafts, setTimeDrafts] = useState<Record<string, TimeDraft>>({});
 
   const recordsByEmployee = new Map<string, AttendanceRecord[]>();
   for (const r of records) {
@@ -25,6 +36,15 @@ export default function AttendanceBoard({
 
   function draftValue(r: AttendanceRecord): string {
     return drafts[r.id] ?? r.observaciones;
+  }
+
+  function timeDraftFor(r: AttendanceRecord): TimeDraft {
+    return timeDrafts[r.id] ?? { horaEntrada: r.horaEntrada, horaSalida: r.horaSalida ?? "" };
+  }
+
+  function timeChanged(r: AttendanceRecord): boolean {
+    const d = timeDraftFor(r);
+    return d.horaEntrada !== r.horaEntrada || d.horaSalida !== (r.horaSalida ?? "");
   }
 
   async function fichar(kind: "checkin" | "checkout", body: Record<string, string>) {
@@ -54,6 +74,34 @@ export default function AttendanceBoard({
     router.refresh();
   }
 
+  async function guardarHorario(r: AttendanceRecord) {
+    const draft = timeDraftFor(r);
+    setSavingTimes(r.id);
+    try {
+      const res = await fetch(`/api/attendance/${r.id}/times`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          horaEntrada: draft.horaEntrada,
+          horaSalida: draft.horaSalida || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(data.error || "No se pudo guardar el horario");
+        return;
+      }
+      setTimeDrafts((d) => {
+        const next = { ...d };
+        delete next[r.id];
+        return next;
+      });
+      router.refresh();
+    } finally {
+      setSavingTimes(null);
+    }
+  }
+
   async function enviarMail(record: AttendanceRecord) {
     setSendingEmail(record.id);
     try {
@@ -79,80 +127,102 @@ export default function AttendanceBoard({
 
   return (
     <div className="space-y-8">
-      <div className="card overflow-x-auto p-0">
-        <table className="table-base">
-          <thead>
-            <tr>
-              <th>Empleado</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {employees.length === 0 && (
+      {isToday && (
+        <div className="card overflow-x-auto p-0">
+          <table className="table-base">
+            <thead>
               <tr>
-                <td colSpan={3} className="py-8 text-center text-slate-400">
-                  No hay empleados activos.
-                </td>
+                <th>Empleado</th>
+                <th>Estado</th>
+                <th></th>
               </tr>
-            )}
-            {employees.map((emp) => {
-              const empRecords = recordsByEmployee.get(emp.id) ?? [];
-              const openRecord = empRecords.find((r) => !r.horaSalida);
-              const latestClosed = [...empRecords].sort((a, b) =>
-                b.horaEntrada.localeCompare(a.horaEntrada)
-              )[0];
-              const last = openRecord ?? latestClosed;
-              const open = !!openRecord;
-
-              return (
-                <tr key={emp.id}>
-                  <td className="font-medium">{emp.nombre}</td>
-                  <td>
-                    {!last && <span className="badge-gray">Sin fichar hoy</span>}
-                    {last && open && (
-                      <span className="badge-green">En jornada desde {last.horaEntrada}</span>
-                    )}
-                    {last && !open && (
-                      <span className="badge-gray">
-                        Jornada {last.horaEntrada} – {last.horaSalida}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {open ? (
-                      <button
-                        className="btn-secondary"
-                        disabled={pending === last.id}
-                        onClick={() => fichar("checkout", { recordId: last.id })}
-                      >
-                        {pending === last.id ? "..." : "Fichar salida"}
-                      </button>
-                    ) : (
-                      <button
-                        className="btn-primary"
-                        disabled={pending === emp.id}
-                        onClick={() => fichar("checkin", { employeeId: emp.id })}
-                      >
-                        {pending === emp.id ? "..." : "Fichar entrada"}
-                      </button>
-                    )}
+            </thead>
+            <tbody>
+              {employees.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-8 text-center text-slate-400">
+                    No hay empleados activos.
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              )}
+              {employees.map((emp) => {
+                const empRecords = recordsByEmployee.get(emp.id) ?? [];
+                const openRecord = empRecords.find((r) => !r.horaSalida);
+                const latestClosed = [...empRecords].sort((a, b) =>
+                  b.horaEntrada.localeCompare(a.horaEntrada)
+                )[0];
+                const last = openRecord ?? latestClosed;
+                const open = !!openRecord;
+
+                return (
+                  <tr key={emp.id}>
+                    <td className="font-medium">{emp.nombre}</td>
+                    <td>
+                      {!last && <span className="badge-gray">Sin fichar hoy</span>}
+                      {last && open && (
+                        <span className="inline-flex items-center gap-2">
+                          <span className="badge-green">En jornada desde {last.horaEntrada}</span>
+                          {last.latitud !== null && last.longitud !== null && (
+                            <a
+                              href={`https://www.google.com/maps?q=${last.latitud},${last.longitud}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={
+                                last.precision !== null
+                                  ? `Ver ubicación (±${last.precision} m)`
+                                  : "Ver ubicación del fichaje"
+                              }
+                              className="text-indigo-600 hover:underline"
+                            >
+                              📍
+                            </a>
+                          )}
+                        </span>
+                      )}
+                      {last && !open && (
+                        <span className="badge-gray">
+                          Jornada {last.horaEntrada} – {last.horaSalida}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {open ? (
+                        <button
+                          className="btn-secondary"
+                          disabled={pending === last.id}
+                          onClick={() => fichar("checkout", { recordId: last.id })}
+                        >
+                          {pending === last.id ? "..." : "Fichar salida"}
+                        </button>
+                      ) : (
+                        <button
+                          className="btn-primary"
+                          disabled={pending === emp.id}
+                          onClick={() => fichar("checkin", { employeeId: emp.id })}
+                        >
+                          {pending === emp.id ? "..." : "Fichar entrada"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Fichajes de hoy</h2>
+        <h2 className="mb-3 text-lg font-semibold">
+          Fichajes {isToday ? "de hoy" : dateLabel ? `del ${dateLabel}` : ""}
+        </h2>
         <div className="card overflow-x-auto p-0">
           <table className="table-base">
             <thead>
               <tr>
                 <th>Empleado</th>
                 <th>Entrada</th>
+                <th>Ubicación</th>
                 <th>Salida</th>
                 <th>Hs. trabajadas</th>
                 <th>Hs. extra</th>
@@ -164,19 +234,64 @@ export default function AttendanceBoard({
             <tbody>
               {records.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
-                    Todavía no hay fichajes hoy.
+                  <td colSpan={9} className="py-8 text-center text-slate-400">
+                    No hay fichajes {isToday ? "hoy" : "en esta fecha"}.
                   </td>
                 </tr>
               )}
               {records.map((r) => {
                 const emp = employees.find((e) => e.id === r.employeeId);
                 const value = draftValue(r);
+                const timeDraft = timeDraftFor(r);
+                const changed = timeChanged(r);
                 return (
                   <tr key={r.id}>
                     <td className="font-medium">{emp?.nombre ?? r.registro}</td>
-                    <td>{r.horaEntrada}</td>
-                    <td>{r.horaSalida ?? "—"}</td>
+                    <td>
+                      <input
+                        type="time"
+                        className="input"
+                        value={timeDraft.horaEntrada}
+                        onChange={(e) =>
+                          setTimeDrafts((d) => ({
+                            ...d,
+                            [r.id]: { ...timeDraftFor(r), horaEntrada: e.target.value },
+                          }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      {r.latitud !== null && r.longitud !== null ? (
+                        <a
+                          href={`https://www.google.com/maps?q=${r.latitud},${r.longitud}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="whitespace-nowrap text-xs font-medium text-indigo-600 hover:underline"
+                        >
+                          📍 Ver mapa
+                          {r.precision !== null && (
+                            <span className="ml-1 font-normal text-slate-400">
+                              (±{r.precision} m)
+                            </span>
+                          )}
+                        </a>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <input
+                        type="time"
+                        className="input"
+                        value={timeDraft.horaSalida}
+                        onChange={(e) =>
+                          setTimeDrafts((d) => ({
+                            ...d,
+                            [r.id]: { ...timeDraftFor(r), horaSalida: e.target.value },
+                          }))
+                        }
+                      />
+                    </td>
                     <td>{r.horasTrabajadas ?? "—"}</td>
                     <td>{r.horasExtra ?? "—"}</td>
                     <td>
@@ -203,14 +318,25 @@ export default function AttendanceBoard({
                       />
                     </td>
                     <td>
-                      <button
-                        className="btn-secondary whitespace-nowrap"
-                        disabled={!emp?.email || !value.trim() || sendingEmail === r.id}
-                        title={!emp?.email ? "El empleado no tiene email cargado" : undefined}
-                        onClick={() => enviarMail(r)}
-                      >
-                        {sendingEmail === r.id ? "Enviando..." : "Enviar mail"}
-                      </button>
+                      <div className="flex flex-col gap-1.5">
+                        {changed && (
+                          <button
+                            className="btn-primary whitespace-nowrap"
+                            disabled={savingTimes === r.id}
+                            onClick={() => guardarHorario(r)}
+                          >
+                            {savingTimes === r.id ? "Guardando..." : "Guardar horario"}
+                          </button>
+                        )}
+                        <button
+                          className="btn-secondary whitespace-nowrap"
+                          disabled={!emp?.email || !value.trim() || sendingEmail === r.id}
+                          title={!emp?.email ? "El empleado no tiene email cargado" : undefined}
+                          onClick={() => enviarMail(r)}
+                        >
+                          {sendingEmail === r.id ? "Enviando..." : "Enviar mail"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

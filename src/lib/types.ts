@@ -30,4 +30,38 @@ export interface AttendanceRecord {
   llegadaTarde: boolean;
   minutosTardanza: number | null;
   observaciones: string;
+  latitud: number | null;
+  longitud: number | null;
+  precision: number | null;
 }
+
+export type Rol = "Admin" | "Empleado";
+
+export interface AppUser {
+  id: string;
+  email: string;
+  passwordHash: string;
+  rol: Rol;
+  employeeId: string | null;
+}
+
+export const ABSENCE_TYPES = [
+  "Vacaciones",
+  "Licencia medica",
+  "Licencia personal",
+  "Falta justificada",
+  "Falta injustificada",
+] as const;
+
+export type AbsenceType = (typeof ABSENCE_TYPES)[number];
+
+export interface Absence {
+  id: string;
+  employeeId: string;
+  fechaInicio: string;
+  fechaFin: string;
+  tipo: AbsenceType;
+  observaciones: string;
+}
+
+export type AbsenceInput = Omit<Absence, "id">;
