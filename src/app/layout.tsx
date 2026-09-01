@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Control de Empleados",
+  title: "Puntual",
   description: "Sistema de control de horas, asistencia y fichas de empleados",
 };
 

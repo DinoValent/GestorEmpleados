@@ -32,7 +32,7 @@ function wrapHtml(title: string, bodyHtml: string) {
       <h2 style="margin-bottom:4px;">${title}</h2>
       ${bodyHtml}
       <p style="color:#64748b;font-size:12px;margin-top:24px;">
-        Este mensaje fue generado automáticamente por el sistema de Control de Empleados.
+        Este mensaje fue generado automáticamente por Puntual.
       </p>
     </div>`;
 }

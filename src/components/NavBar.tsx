@@ -39,7 +39,7 @@ export default function NavBar() {
           href={isAdmin ? "/" : "/mi-fichaje"}
           className="text-lg font-semibold tracking-tight text-slate-900"
         >
-          Control de Empleados
+          Puntual
         </Link>
 
         {status === "authenticated" && (
