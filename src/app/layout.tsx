@@ -8,9 +8,9 @@ import "./globals.css";
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
-    var stored = localStorage.getItem("puntual-theme");
-    var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (dark) document.documentElement.classList.add("dark");
+    if (localStorage.getItem("puntual-theme") === "dark") {
+      document.documentElement.classList.add("dark");
+    }
   } catch (e) {}
 })();
 `;
