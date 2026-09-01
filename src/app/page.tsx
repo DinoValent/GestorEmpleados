@@ -1,4 +1,7 @@
 import Link from "next/link";
+import TeamHoursCard from "@/components/TeamHoursCard";
+import { getWeekRange } from "@/lib/calendar";
+import { dailyHoursChart } from "@/lib/chartData";
 import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
 
@@ -7,15 +10,19 @@ export const revalidate = 30;
 export default async function Home() {
   const empresaId = (await getEmpresaId())!;
   const today = todayISO();
+  const week = getWeekRange();
 
-  const [employees, todayAttendance] = await Promise.all([
+  const [employees, todayAttendance, weekAttendance] = await Promise.all([
     listEmployees(empresaId),
     listAttendance(empresaId, { dateFrom: today, dateTo: today }),
+    listAttendance(empresaId, { dateFrom: week.from, dateTo: week.to }),
   ]);
 
   const activos = employees.filter((e) => e.estado === "Activo").length;
   const fichajesHoy = todayAttendance.length;
   const tardeHoy = todayAttendance.filter((a) => a.llegadaTarde).length;
+  const weekChartData = dailyHoursChart(weekAttendance, week.from, week.to);
+  const weekTotalHoras = weekAttendance.reduce((acc, r) => acc + (r.horasTrabajadas ?? 0), 0);
 
   const stats = [
     { label: "Empleados activos", value: activos, href: "/empleados" },
@@ -44,6 +51,8 @@ export default async function Home() {
           </Link>
         ))}
       </div>
+
+      <TeamHoursCard data={weekChartData} label={week.label} totalHoras={weekTotalHoras} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Link href="/asistencia" className="card hover:border-slate-300">

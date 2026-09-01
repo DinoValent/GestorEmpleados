@@ -1,9 +1,10 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import SettingsMenu from "./SettingsMenu";
 
 const NAV_LINKS = [
   { href: "/", label: "Inicio" },
@@ -32,19 +33,26 @@ export default function NavBar() {
   const isAdmin = session?.user?.rol === "Admin";
 
   return (
-    <header className="relative border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+    <header
+      className="sticky top-0 z-40 border-b backdrop-blur-md"
+      style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--surface) 85%, transparent)" }}
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
         <Link
           href={isAdmin ? "/" : "/mi-fichaje"}
-          className="text-lg font-semibold tracking-tight text-slate-900"
+          className="flex items-center gap-2 text-lg font-semibold tracking-tight transition-opacity hover:opacity-80"
+          style={{ color: "var(--foreground)" }}
         >
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-sm">
+            P
+          </span>
           Puntual
         </Link>
 
         {status === "authenticated" && (
           <>
             {/* Desktop */}
-            <div className="hidden items-center gap-4 lg:flex">
+            <div className="hidden items-center gap-3 lg:flex">
               {isAdmin && (
                 <nav className="flex flex-nowrap gap-0.5 text-sm font-medium">
                   {NAV_LINKS.map((link) => {
@@ -54,55 +62,56 @@ export default function NavBar() {
                       <Link
                         key={link.href}
                         href={link.href}
-                        className={
+                        className={`relative whitespace-nowrap rounded-md px-2.5 py-1.5 transition-colors duration-150 ${
                           active
-                            ? "whitespace-nowrap rounded-md bg-indigo-50 px-2.5 py-1.5 text-indigo-700"
-                            : "whitespace-nowrap rounded-md px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                        }
+                            ? "text-indigo-600 dark:text-indigo-400"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        }`}
                       >
                         {link.label}
+                        {active && (
+                          <span className="absolute inset-x-2 -bottom-[13px] h-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" />
+                        )}
                       </Link>
                     );
                   })}
                 </nav>
               )}
-              <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
-                <span className="hidden text-sm text-slate-500 xl:inline">
-                  {session?.user?.email}
-                </span>
-                <button
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="text-sm font-medium text-slate-500 hover:text-slate-900"
-                >
-                  Salir
-                </button>
+              <div className="ml-1 border-l pl-3" style={{ borderColor: "var(--border)" }}>
+                <SettingsMenu email={session?.user?.email} />
               </div>
             </div>
 
             {/* Mobile toggle */}
-            <button
-              onClick={() => setOpen((v) => !v)}
-              aria-label={open ? "Cerrar menú" : "Abrir menú"}
-              aria-expanded={open}
-              className="flex h-10 w-10 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 lg:hidden"
-            >
-              {open ? (
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
-                </svg>
-              )}
-            </button>
+            <div className="flex items-center gap-1.5 lg:hidden">
+              <SettingsMenu email={session?.user?.email} />
+              <button
+                onClick={() => setOpen((v) => !v)}
+                aria-label={open ? "Cerrar menú" : "Abrir menú"}
+                aria-expanded={open}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100"
+              >
+                {open ? (
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </>
         )}
       </div>
 
       {/* Mobile panel */}
       {status === "authenticated" && open && (
-        <div className="border-t border-slate-200 bg-white px-4 py-3 lg:hidden">
+        <div
+          className="animate-page border-t px-4 py-3 lg:hidden"
+          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+        >
           {isAdmin && (
             <nav className="flex flex-col gap-1">
               {NAV_LINKS.map((link) => {
@@ -114,7 +123,7 @@ export default function NavBar() {
                     href={link.href}
                     className={
                       active
-                        ? "rounded-md bg-indigo-50 px-3 py-2.5 text-sm font-medium text-indigo-700"
+                        ? "rounded-md bg-indigo-50 px-3 py-2.5 text-sm font-medium text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
                         : "rounded-md px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
                     }
                   >
@@ -124,15 +133,6 @@ export default function NavBar() {
               })}
             </nav>
           )}
-          <div className="mt-2 flex items-center justify-between border-t border-slate-100 px-3 pt-3">
-            <span className="truncate text-sm text-slate-500">{session?.user?.email}</span>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="text-sm font-medium text-slate-500 hover:text-slate-900"
-            >
-              Salir
-            </button>
-          </div>
         </div>
       )}
     </header>

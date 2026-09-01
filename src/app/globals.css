@@ -1,9 +1,44 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   color-scheme: light;
-  --background: #f8fafc;
+  --background: #f6f7fb;
+  --surface: #ffffff;
+  --surface-hover: #f8fafc;
   --foreground: #0f172a;
+  --foreground-secondary: #475569;
+  --foreground-muted: #94a3b8;
+  --border: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-soft-text: #4338ca;
+  --shadow-color: 220 30% 60%;
+}
+
+:root[data-theme="dark"],
+:root:not([data-theme="light"]).dark-preference {
+  color-scheme: dark;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #0a0e1a;
+  --surface: #12172a;
+  --surface-hover: #171d34;
+  --foreground: #e6e9f2;
+  --foreground-secondary: #97a0bb;
+  --foreground-muted: #5b6482;
+  --border: #232a45;
+  --border-subtle: #1a2038;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-soft: rgba(99, 102, 241, 0.16);
+  --accent-soft-text: #b4baff;
+  --shadow-color: 230 60% 3%;
 }
 
 @theme inline {
@@ -13,53 +48,361 @@
   --font-mono: var(--font-geist-mono);
 }
 
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
 }
+
+/* ---------- animations ---------- */
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-page {
+  animation: fade-in-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-pop {
+  animation: pop-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stagger > * {
+  animation: fade-in-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 200ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page,
+  .animate-pop,
+  .stagger > * {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- components ---------- */
 
 @layer components {
   .card {
-    @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm;
+    @apply relative rounded-2xl p-6 shadow-sm transition-all duration-200;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.04);
   }
+  a.card:hover,
+  button.card:hover,
+  .card-hover:hover {
+    @apply -translate-y-0.5 shadow-md;
+    border-color: var(--accent);
+  }
+
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   }
+  .btn-primary:hover:not(:disabled) {
+    @apply -translate-y-px shadow-md brightness-110;
+  }
+  .btn-primary:active:not(:disabled) {
+    @apply translate-y-0 scale-[0.98];
+  }
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-white text-slate-700 hover:bg-slate-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+    background: var(--surface);
+    color: var(--foreground-secondary);
+    border: 1px solid var(--border);
   }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--foreground);
+    border-color: var(--accent);
+  }
+  .btn-secondary:active:not(:disabled) {
+    @apply scale-[0.98];
+  }
+
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 bg-red-600 text-white hover:bg-red-500 shadow-sm;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 bg-red-600 hover:bg-red-500 hover:-translate-y-px hover:shadow-md active:scale-[0.98];
   }
+
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100;
+    @apply w-full rounded-lg px-3 py-2 text-sm outline-none transition-all duration-150;
+    background: var(--surface);
+    color: var(--foreground);
+    border: 1px solid var(--border);
   }
+  .input::placeholder {
+    color: var(--foreground-muted);
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
   .label {
-    @apply mb-1 block text-sm font-medium text-slate-700;
+    @apply mb-1 block text-sm font-medium;
+    color: var(--foreground-secondary);
   }
+
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors;
   }
   .badge-green {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300;
   }
   .badge-red {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300;
   }
   .badge-gray {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-700;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background: var(--border-subtle);
+    color: var(--foreground-secondary);
   }
+
   .table-base {
-    @apply w-full text-left text-sm text-slate-700;
+    @apply w-full text-left text-sm;
+    color: var(--foreground-secondary);
   }
   .table-base th {
-    @apply border-b border-slate-200 px-3 py-2 font-medium text-slate-500;
+    @apply px-3 py-2 text-xs font-semibold tracking-wide uppercase;
+    border-bottom: 1px solid var(--border);
+    color: var(--foreground-muted);
   }
   .table-base td {
-    @apply border-b border-slate-100 px-3 py-2;
+    @apply px-3 py-2;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .table-base tbody tr {
+    @apply transition-colors duration-150;
   }
   .table-base tbody tr:hover {
-    @apply bg-slate-50;
+    background: var(--surface-hover);
   }
+
+  .skeleton {
+    @apply rounded-md;
+    background: linear-gradient(
+      90deg,
+      var(--border-subtle) 25%,
+      var(--border) 50%,
+      var(--border-subtle) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+/* ---------- dark-mode remap for raw utility colors used throughout the app ---------- */
+
+.dark .bg-white {
+  background-color: var(--surface);
+}
+.dark .text-slate-900 {
+  color: #f1f5f9;
+}
+.dark .text-slate-800 {
+  color: #e2e8f0;
+}
+.dark .text-slate-700 {
+  color: #cbd5e1;
+}
+.dark .text-slate-600 {
+  color: #97a0bb;
+}
+.dark .text-slate-500 {
+  color: #8891ac;
+}
+.dark .text-slate-400 {
+  color: #64708f;
+}
+.dark .text-slate-300 {
+  color: #475569;
+}
+.dark .text-slate-200 {
+  color: #334155;
+}
+.dark .border-slate-100 {
+  border-color: var(--border-subtle);
+}
+.dark .border-slate-200 {
+  border-color: var(--border);
+}
+.dark .border-slate-300 {
+  border-color: #2d3654;
+}
+.dark .bg-slate-50 {
+  background-color: var(--background);
+}
+.dark .bg-slate-50\/60 {
+  background-color: rgb(10 14 26 / 60%);
+}
+.dark .bg-slate-100 {
+  background-color: var(--border-subtle);
+}
+.dark .bg-slate-200 {
+  background-color: var(--border);
+}
+.dark .bg-indigo-50 {
+  background-color: var(--accent-soft);
+}
+.dark .bg-indigo-50\/30 {
+  background-color: rgb(99 102 241 / 10%);
+}
+.dark .bg-indigo-100 {
+  background-color: rgb(99 102 241 / 20%);
+}
+.dark .text-indigo-600 {
+  color: var(--accent-hover);
+}
+.dark .text-indigo-700 {
+  color: var(--accent-soft-text);
+}
+.dark .bg-red-50 {
+  background-color: rgb(248 113 113 / 12%);
+}
+.dark .text-red-700 {
+  color: #fca5a5;
+}
+.dark .text-red-800 {
+  color: #fca5a5;
+}
+.dark .bg-red-100 {
+  background-color: rgb(248 113 113 / 15%);
+}
+.dark .bg-amber-50 {
+  background-color: rgb(251 191 36 / 12%);
+}
+.dark .bg-amber-50\/60 {
+  background-color: rgb(251 191 36 / 8%);
+}
+.dark .bg-amber-100 {
+  background-color: rgb(251 191 36 / 18%);
+}
+.dark .text-amber-700 {
+  color: #fcd34d;
+}
+.dark .text-amber-800 {
+  color: #fcd34d;
+}
+.dark .bg-sky-100 {
+  background-color: rgb(56 189 248 / 18%);
+}
+.dark .text-sky-800 {
+  color: #7dd3fc;
+}
+.dark .bg-purple-100 {
+  background-color: rgb(192 132 252 / 18%);
+}
+.dark .text-purple-800 {
+  color: #d8b4fe;
+}
+.dark .bg-emerald-100 {
+  background-color: rgb(52 211 153 / 15%);
+}
+.dark .text-emerald-800 {
+  color: #6ee7b7;
+}
+.dark .hover\:bg-slate-50:hover {
+  background-color: var(--surface-hover);
+}
+.dark .hover\:bg-slate-100:hover {
+  background-color: var(--border-subtle);
+}
+.dark .hover\:text-slate-900:hover {
+  color: #f8fafc;
+}
+.dark .hover\:text-slate-800:hover {
+  color: #e2e8f0;
+}
+.dark .hover\:text-slate-600:hover {
+  color: #cbd5e1;
+}
+.dark .hover\:border-slate-300:hover {
+  border-color: #2d3654;
+}
+.dark .fill-slate-900 {
+  fill: #f1f5f9;
+}
+.dark .fill-slate-500 {
+  fill: #8891ac;
+}
+.dark .fill-slate-400 {
+  fill: #64708f;
+}
+.dark .stroke-slate-200 {
+  stroke: var(--border);
 }
