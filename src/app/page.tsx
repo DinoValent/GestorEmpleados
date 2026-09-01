@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
 
 export default async function Home() {
+  const empresaId = (await getEmpresaId())!;
   const today = todayISO();
 
   const [employees, todayAttendance] = await Promise.all([
-    listEmployees(),
-    listAttendance({ dateFrom: today, dateTo: today }),
+    listEmployees(empresaId),
+    listAttendance(empresaId, { dateFrom: today, dateTo: today }),
   ]);
 
   const activos = employees.filter((e) => e.estado === "Activo").length;

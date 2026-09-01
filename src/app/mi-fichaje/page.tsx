@@ -15,8 +15,9 @@ export default async function MiFichajePage({
 }) {
   const session = await auth();
   const employeeId = session?.user?.employeeId;
+  const empresaId = session?.user?.empresaId;
 
-  if (!employeeId) {
+  if (!employeeId || !empresaId) {
     return (
       <div className="mx-auto max-w-md">
         <div className="card text-center">
@@ -54,9 +55,9 @@ export default async function MiFichajePage({
 
   const today = todayISO();
   const [employee, todayRecords, rangeRecords] = await Promise.all([
-    getEmployee(employeeId),
-    listAttendance({ employeeId, dateFrom: today, dateTo: today }),
-    listAttendance({ employeeId, dateFrom, dateTo }),
+    getEmployee(employeeId, empresaId),
+    listAttendance(empresaId, { employeeId, dateFrom: today, dateTo: today }),
+    listAttendance(empresaId, { employeeId, dateFrom, dateTo }),
   ]);
 
   const chartData = dailyHoursChart(rangeRecords, dateFrom, dateTo);

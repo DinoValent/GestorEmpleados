@@ -1,11 +1,14 @@
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
-import { listUsers, upsertUser } from "@/lib/notion";
+import { getEmployee, listUsers, upsertUser } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 import type { Rol } from "@/lib/types";
 
 export async function GET() {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    const users = await listUsers();
+    const users = await listUsers(empresaId);
     return NextResponse.json(users.map((u) => ({ ...u, passwordHash: undefined })));
   } catch (err) {
     console.error(err);
@@ -14,6 +17,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const { email, password, rol, employeeId } = (await req.json()) as {
       email?: string;
@@ -39,8 +44,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (employeeId) {
+      await getEmployee(employeeId, empresaId); // valida que el empleado sea de esta empresa
+    }
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await upsertUser({
+    const user = await upsertUser(empresaId, {
       email,
       passwordHash,
       rol,
@@ -49,6 +57,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ...user, passwordHash: undefined }, { status: 201 });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo guardar el usuario" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "No se pudo guardar el usuario";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

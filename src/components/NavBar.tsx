@@ -12,7 +12,6 @@ const NAV_LINKS = [
   { href: "/quincena", label: "Quincena" },
   { href: "/calendario", label: "Calendario" },
   { href: "/ausencias", label: "Ausencias" },
-  { href: "/feriados", label: "Feriados" },
   { href: "/turnos", label: "Turnos" },
   { href: "/reportes", label: "Reportes" },
   { href: "/usuarios", label: "Usuarios" },

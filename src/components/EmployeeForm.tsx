@@ -6,7 +6,9 @@ import type { Employee, EmployeeInput } from "@/lib/types";
 
 const AREAS = ["Administracion", "Ventas", "Produccion", "Sistemas", "RRHH", "Otro"];
 
-const emptyForm: EmployeeInput = {
+type EmployeeFormData = Omit<EmployeeInput, "empresaId">;
+
+const emptyForm: EmployeeFormData = {
   nombre: "",
   legajo: "",
   dni: "",
@@ -23,7 +25,7 @@ const emptyForm: EmployeeInput = {
 
 export default function EmployeeForm({ employee }: { employee?: Employee }) {
   const router = useRouter();
-  const [form, setForm] = useState<EmployeeInput>(
+  const [form, setForm] = useState<EmployeeFormData>(
     employee
       ? {
           nombre: employee.nombre,
@@ -44,7 +46,7 @@ export default function EmployeeForm({ employee }: { employee?: Employee }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function set<K extends keyof EmployeeInput>(key: K, value: EmployeeInput[K]) {
+  function set<K extends keyof EmployeeFormData>(key: K, value: EmployeeFormData[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 

@@ -1,11 +1,14 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { updateAttendanceTimes } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const { id } = await params;
     const { horaEntrada, horaSalida } = (await req.json()) as {
@@ -18,7 +21,7 @@ export async function PATCH(
     if (horaSalida && !/^\d{1,2}:\d{2}$/.test(horaSalida)) {
       return NextResponse.json({ error: "Hora de salida inválida" }, { status: 400 });
     }
-    const record = await updateAttendanceTimes(id, horaEntrada, horaSalida || null);
+    const record = await updateAttendanceTimes(empresaId, id, horaEntrada, horaSalida || null);
     revalidatePath("/asistencia");
     return NextResponse.json(record);
   } catch (err) {

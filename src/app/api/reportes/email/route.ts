@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployee, listAttendance } from "@/lib/notion";
 import { sendSummaryEmail } from "@/lib/email";
+import { getEmpresaId } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const { employeeId, dateFrom, dateTo } = (await req.json()) as {
       employeeId?: string;
@@ -13,8 +16,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Faltan employeeId, dateFrom o dateTo" }, { status: 400 });
     }
     const [employee, records] = await Promise.all([
-      getEmployee(employeeId),
-      listAttendance({ employeeId, dateFrom, dateTo }),
+      getEmployee(employeeId, empresaId),
+      listAttendance(empresaId, { employeeId, dateFrom, dateTo }),
     ]);
     if (records.length === 0) {
       return NextResponse.json(

@@ -40,7 +40,7 @@ export default function FeriadosPanel() {
     setSaving(true);
     setError(null);
     try {
-      const body: HolidayInput = { nombre, fecha, tipo };
+      const body: Omit<HolidayInput, "empresaId"> = { nombre, fecha, tipo };
       const res = await fetch("/api/feriados", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

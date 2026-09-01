@@ -7,8 +7,11 @@ import type {
   AbsenceType,
   AppUser,
   AttendanceRecord,
+  Company,
+  CompanyInput,
   Employee,
   EmployeeInput,
+  Estado,
   Holiday,
   HolidayInput,
   HolidayType,
@@ -36,6 +39,8 @@ const SHIFTS_DB = process.env.NOTION_SHIFTS_DB_ID as string;
 const SHIFTS_DS = process.env.NOTION_SHIFTS_DATA_SOURCE_ID as string;
 const SHIFT_ASSIGNMENTS_DB = process.env.NOTION_SHIFT_ASSIGNMENTS_DB_ID as string;
 const SHIFT_ASSIGNMENTS_DS = process.env.NOTION_SHIFT_ASSIGNMENTS_DATA_SOURCE_ID as string;
+const COMPANIES_DB = process.env.NOTION_COMPANIES_DB_ID as string;
+const COMPANIES_DS = process.env.NOTION_COMPANIES_DATA_SOURCE_ID as string;
 
 // ---------- helpers ----------
 
@@ -84,9 +89,22 @@ function relationFirstId(page: PageObjectResponse, prop: string): string {
   return "";
 }
 
+/** Filtro de propiedad para restringir cualquier consulta a los datos de una empresa. */
+function empresaFilter(empresaId: string): PropertyFilter {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { property: "Empresa", relation: { contains: empresaId } } as any;
+}
+
+function withEmpresaFilter(empresaId: string, extra: PropertyFilter[]) {
+  const all = [empresaFilter(empresaId), ...extra];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (all.length === 1 ? all[0] : { and: all }) as any;
+}
+
 function mapEmployee(page: PageObjectResponse): Employee {
   return {
     id: page.id,
+    empresaId: relationFirstId(page, "Empresa"),
     nombre: text(page, "Nombre completo"),
     legajo: text(page, "Legajo"),
     dni: text(page, "DNI"),
@@ -105,6 +123,7 @@ function mapEmployee(page: PageObjectResponse): Employee {
 function mapAttendance(page: PageObjectResponse): AttendanceRecord {
   return {
     id: page.id,
+    empresaId: relationFirstId(page, "Empresa"),
     registro: text(page, "Registro"),
     employeeId: relationFirstId(page, "Empleado"),
     fecha: dateVal(page, "Fecha") ?? "",
@@ -129,15 +148,59 @@ function toMinutes(hhmm: string): number | null {
 
 export { nowHHMM, todayISO };
 
+// ---------- companies (empresas) ----------
+
+function mapCompany(page: PageObjectResponse): Company {
+  return {
+    id: page.id,
+    nombre: text(page, "Nombre"),
+    estado: (selectVal(page, "Estado") || "Activo") as Estado,
+  };
+}
+
+/** Lista TODAS las empresas, sin filtrar — solo para altas de clientes y el cron multi-empresa. */
+export async function listCompanies(): Promise<Company[]> {
+  const results: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.dataSources.query({
+      data_source_id: COMPANIES_DS,
+      start_cursor: cursor ?? undefined,
+      sorts: [{ property: "Nombre", direction: "ascending" }],
+    });
+    results.push(...(res.results as PageObjectResponse[]));
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results.map(mapCompany);
+}
+
+export async function getCompany(id: string): Promise<Company> {
+  const page = (await notion.pages.retrieve({ page_id: id })) as PageObjectResponse;
+  return mapCompany(page);
+}
+
+export async function createCompany(data: CompanyInput): Promise<Company> {
+  const page = (await notion.pages.create({
+    parent: { database_id: COMPANIES_DB },
+    properties: {
+      Nombre: { title: [{ text: { content: data.nombre } }] },
+      Estado: { select: { name: data.estado || "Activo" } },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  })) as PageObjectResponse;
+  return mapCompany(page);
+}
+
 // ---------- employees ----------
 
-export async function listEmployees(): Promise<Employee[]> {
+export async function listEmployees(empresaId: string): Promise<Employee[]> {
   const results: PageObjectResponse[] = [];
   let cursor: string | undefined;
   do {
     const res = await notion.dataSources.query({
       data_source_id: EMPLOYEES_DS,
       start_cursor: cursor ?? undefined,
+      filter: empresaFilter(empresaId),
       sorts: [{ property: "Nombre completo", direction: "ascending" }],
     });
     results.push(...(res.results as PageObjectResponse[]));
@@ -146,9 +209,11 @@ export async function listEmployees(): Promise<Employee[]> {
   return results.map(mapEmployee);
 }
 
-export async function getEmployee(id: string): Promise<Employee> {
+export async function getEmployee(id: string, empresaId: string): Promise<Employee> {
   const page = (await notion.pages.retrieve({ page_id: id })) as PageObjectResponse;
-  return mapEmployee(page);
+  const employee = mapEmployee(page);
+  if (employee.empresaId !== empresaId) throw new Error("No autorizado");
+  return employee;
 }
 
 function employeeProperties(data: EmployeeInput) {
@@ -174,6 +239,7 @@ function employeeProperties(data: EmployeeInput) {
       data.salarioBase === null || data.salarioBase === undefined
         ? { number: null }
         : { number: data.salarioBase },
+    Empresa: { relation: [{ id: data.empresaId }] },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -188,8 +254,10 @@ export async function createEmployee(data: EmployeeInput): Promise<Employee> {
 
 export async function updateEmployee(
   id: string,
+  empresaId: string,
   data: EmployeeInput
 ): Promise<Employee> {
+  await getEmployee(id, empresaId); // lanza si el empleado no es de esta empresa
   const page = (await notion.pages.update({
     page_id: id,
     properties: employeeProperties(data),
@@ -206,6 +274,7 @@ export interface AttendanceFilters {
 }
 
 export async function listAttendance(
+  empresaId: string,
   filters: AttendanceFilters = {}
 ): Promise<AttendanceRecord[]> {
   const andFilters: PropertyFilter[] = [];
@@ -219,20 +288,13 @@ export async function listAttendance(
     andFilters.push({ property: "Fecha", date: { on_or_before: filters.dateTo } });
   }
 
-  const filter =
-    andFilters.length === 0
-      ? undefined
-      : andFilters.length === 1
-        ? andFilters[0]
-        : { and: andFilters };
-
   const results: PageObjectResponse[] = [];
   let cursor: string | undefined;
   do {
     const res = await notion.dataSources.query({
       data_source_id: ATTENDANCE_DS,
       start_cursor: cursor ?? undefined,
-      filter,
+      filter: withEmpresaFilter(empresaId, andFilters),
       sorts: [{ property: "Fecha", direction: "descending" }],
     });
     results.push(...(res.results as PageObjectResponse[]));
@@ -241,12 +303,15 @@ export async function listAttendance(
   return results.map(mapAttendance);
 }
 
-export async function getAttendanceRecord(id: string): Promise<AttendanceRecord> {
+export async function getAttendanceRecord(id: string, empresaId: string): Promise<AttendanceRecord> {
   const page = (await notion.pages.retrieve({ page_id: id })) as PageObjectResponse;
-  return mapAttendance(page);
+  const record = mapAttendance(page);
+  if (record.empresaId !== empresaId) throw new Error("No autorizado");
+  return record;
 }
 
-export async function findOpenAttendance(
+async function findOpenAttendance(
+  empresaId: string,
   employeeId: string,
   date: string
 ): Promise<AttendanceRecord | null> {
@@ -254,6 +319,7 @@ export async function findOpenAttendance(
     data_source_id: ATTENDANCE_DS,
     filter: {
       and: [
+        { property: "Empresa", relation: { contains: empresaId } },
         { property: "Empleado", relation: { contains: employeeId } },
         { property: "Fecha", date: { equals: date } },
         { property: "Hora salida", rich_text: { is_empty: true } },
@@ -265,18 +331,19 @@ export async function findOpenAttendance(
 }
 
 export async function checkIn(
+  empresaId: string,
   employeeId: string,
   coords?: { lat: number; lon: number; accuracy?: number }
 ): Promise<AttendanceRecord> {
-  const employee = await getEmployee(employeeId);
+  const employee = await getEmployee(employeeId, empresaId);
   const date = todayISO();
 
-  const existing = await findOpenAttendance(employeeId, date);
+  const existing = await findOpenAttendance(empresaId, employeeId, date);
   if (existing) return existing;
 
   const horaEntrada = nowHHMM();
   const entradaMin = toMinutes(horaEntrada)!;
-  const schedule = await resolveEmployeeSchedule(employeeId, date, employee);
+  const schedule = await resolveEmployeeSchedule(empresaId, employeeId, date, employee);
   const habitualMin = toMinutes(schedule.horaEntrada);
 
   let llegadaTarde = false;
@@ -294,6 +361,7 @@ export async function checkIn(
     properties: {
       Registro: { title: [{ text: { content: `${employee.nombre} - ${date}` } }] },
       Empleado: { relation: [{ id: employeeId }] },
+      Empresa: { relation: [{ id: empresaId }] },
       Fecha: { date: { start: date } },
       "Hora entrada": { rich_text: [{ text: { content: horaEntrada } }] },
       "Llegada tarde": { checkbox: llegadaTarde },
@@ -349,12 +417,11 @@ function computeDerived(
   return { llegadaTarde, minutosTardanza, horasTrabajadas, horasExtra };
 }
 
-export async function checkOut(recordId: string): Promise<AttendanceRecord> {
-  const page = (await notion.pages.retrieve({ page_id: recordId })) as PageObjectResponse;
-  const record = mapAttendance(page);
-  const employee = await getEmployee(record.employeeId);
+export async function checkOut(empresaId: string, recordId: string): Promise<AttendanceRecord> {
+  const record = await getAttendanceRecord(recordId, empresaId);
+  const employee = await getEmployee(record.employeeId, empresaId);
   const horaSalida = nowHHMM();
-  const schedule = await resolveEmployeeSchedule(record.employeeId, record.fecha, employee);
+  const schedule = await resolveEmployeeSchedule(empresaId, record.employeeId, record.fecha, employee);
   const derived = computeDerived(schedule, record.horaEntrada, horaSalida);
 
   const updated = (await notion.pages.update({
@@ -371,13 +438,14 @@ export async function checkOut(recordId: string): Promise<AttendanceRecord> {
 }
 
 export async function updateAttendanceTimes(
+  empresaId: string,
   recordId: string,
   horaEntrada: string,
   horaSalida: string | null
 ): Promise<AttendanceRecord> {
-  const record = await getAttendanceRecord(recordId);
-  const employee = await getEmployee(record.employeeId);
-  const schedule = await resolveEmployeeSchedule(record.employeeId, record.fecha, employee);
+  const record = await getAttendanceRecord(recordId, empresaId);
+  const employee = await getEmployee(record.employeeId, empresaId);
+  const schedule = await resolveEmployeeSchedule(empresaId, record.employeeId, record.fecha, employee);
   const derived = computeDerived(schedule, horaEntrada, horaSalida);
 
   const updated = (await notion.pages.update({
@@ -397,9 +465,11 @@ export async function updateAttendanceTimes(
 }
 
 export async function updateAttendanceNotes(
+  empresaId: string,
   recordId: string,
   observaciones: string
 ): Promise<AttendanceRecord> {
+  await getAttendanceRecord(recordId, empresaId);
   const updated = (await notion.pages.update({
     page_id: recordId,
     properties: {
@@ -415,6 +485,7 @@ export async function updateAttendanceNotes(
 function mapAbsence(page: PageObjectResponse): Absence {
   return {
     id: page.id,
+    empresaId: relationFirstId(page, "Empresa"),
     employeeId: relationFirstId(page, "Empleado"),
     fechaInicio: dateVal(page, "Fecha inicio") ?? "",
     fechaFin: dateVal(page, "Fecha fin") ?? "",
@@ -429,7 +500,10 @@ export interface AbsenceFilters {
   dateTo?: string;
 }
 
-export async function listAbsences(filters: AbsenceFilters = {}): Promise<Absence[]> {
+export async function listAbsences(
+  empresaId: string,
+  filters: AbsenceFilters = {}
+): Promise<Absence[]> {
   const andFilters: PropertyFilter[] = [];
   if (filters.employeeId) {
     andFilters.push({ property: "Empleado", relation: { contains: filters.employeeId } });
@@ -441,20 +515,13 @@ export async function listAbsences(filters: AbsenceFilters = {}): Promise<Absenc
     andFilters.push({ property: "Fecha inicio", date: { on_or_before: filters.dateTo } });
   }
 
-  const filter =
-    andFilters.length === 0
-      ? undefined
-      : andFilters.length === 1
-        ? andFilters[0]
-        : { and: andFilters };
-
   const results: PageObjectResponse[] = [];
   let cursor: string | undefined;
   do {
     const res = await notion.dataSources.query({
       data_source_id: ABSENCES_DS,
       start_cursor: cursor ?? undefined,
-      filter,
+      filter: withEmpresaFilter(empresaId, andFilters),
       sorts: [{ property: "Fecha inicio", direction: "descending" }],
     });
     results.push(...(res.results as PageObjectResponse[]));
@@ -469,6 +536,7 @@ export async function createAbsence(data: AbsenceInput): Promise<Absence> {
     properties: {
       Titulo: { title: [{ text: { content: `${data.tipo} · ${data.fechaInicio}` } }] },
       Empleado: { relation: [{ id: data.employeeId }] },
+      Empresa: { relation: [{ id: data.empresaId }] },
       "Fecha inicio": { date: { start: data.fechaInicio } },
       "Fecha fin": { date: { start: data.fechaFin } },
       Tipo: { select: { name: data.tipo } },
@@ -484,6 +552,7 @@ export async function createAbsence(data: AbsenceInput): Promise<Absence> {
 function mapUser(page: PageObjectResponse): AppUser {
   return {
     id: page.id,
+    empresaId: relationFirstId(page, "Empresa"),
     email: text(page, "Email").toLowerCase(),
     passwordHash: text(page, "Password hash"),
     rol: (selectVal(page, "Rol") || "Empleado") as Rol,
@@ -491,6 +560,7 @@ function mapUser(page: PageObjectResponse): AppUser {
   };
 }
 
+/** Busca un usuario por email en TODAS las empresas (así funciona el login, sin pedir "empresa"). */
 export async function getUserByEmail(email: string): Promise<AppUser | null> {
   const res = await notion.dataSources.query({
     data_source_id: USERS_DS,
@@ -503,13 +573,14 @@ export async function getUserByEmail(email: string): Promise<AppUser | null> {
   return page ? mapUser(page) : null;
 }
 
-export async function listUsers(): Promise<AppUser[]> {
+export async function listUsers(empresaId: string): Promise<AppUser[]> {
   const results: PageObjectResponse[] = [];
   let cursor: string | undefined;
   do {
     const res = await notion.dataSources.query({
       data_source_id: USERS_DS,
       start_cursor: cursor ?? undefined,
+      filter: empresaFilter(empresaId),
     });
     results.push(...(res.results as PageObjectResponse[]));
     cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
@@ -517,18 +588,25 @@ export async function listUsers(): Promise<AppUser[]> {
   return results.map(mapUser);
 }
 
-export async function upsertUser(data: {
-  email: string;
-  passwordHash: string;
-  rol: Rol;
-  employeeId: string | null;
-}): Promise<AppUser> {
+export async function upsertUser(
+  empresaId: string,
+  data: {
+    email: string;
+    passwordHash: string;
+    rol: Rol;
+    employeeId: string | null;
+  }
+): Promise<AppUser> {
   const existing = await getUserByEmail(data.email);
+  if (existing && existing.empresaId !== empresaId) {
+    throw new Error("Ya existe un usuario con ese email en otra empresa");
+  }
   const properties = {
     Email: { title: [{ text: { content: data.email.toLowerCase() } }] },
     "Password hash": { rich_text: [{ text: { content: data.passwordHash } }] },
     Rol: { select: { name: data.rol } },
     Empleado: data.employeeId ? { relation: [{ id: data.employeeId }] } : { relation: [] },
+    Empresa: { relation: [{ id: empresaId }] },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
@@ -546,18 +624,21 @@ export async function upsertUser(data: {
 function mapHoliday(page: PageObjectResponse): Holiday {
   return {
     id: page.id,
+    empresaId: relationFirstId(page, "Empresa"),
     nombre: text(page, "Nombre"),
     fecha: dateVal(page, "Fecha") ?? "",
     tipo: (selectVal(page, "Tipo") || "Nacional") as HolidayType,
   };
 }
 
-export async function listHolidays(dateFrom?: string, dateTo?: string): Promise<Holiday[]> {
+export async function listHolidays(
+  empresaId: string,
+  dateFrom?: string,
+  dateTo?: string
+): Promise<Holiday[]> {
   const andFilters: PropertyFilter[] = [];
   if (dateFrom) andFilters.push({ property: "Fecha", date: { on_or_after: dateFrom } });
   if (dateTo) andFilters.push({ property: "Fecha", date: { on_or_before: dateTo } });
-  const filter =
-    andFilters.length === 0 ? undefined : andFilters.length === 1 ? andFilters[0] : { and: andFilters };
 
   const results: PageObjectResponse[] = [];
   let cursor: string | undefined;
@@ -565,7 +646,7 @@ export async function listHolidays(dateFrom?: string, dateTo?: string): Promise<
     const res = await notion.dataSources.query({
       data_source_id: HOLIDAYS_DS,
       start_cursor: cursor ?? undefined,
-      filter,
+      filter: withEmpresaFilter(empresaId, andFilters),
       sorts: [{ property: "Fecha", direction: "ascending" }],
     });
     results.push(...(res.results as PageObjectResponse[]));
@@ -581,6 +662,7 @@ export async function createHoliday(data: HolidayInput): Promise<Holiday> {
       Nombre: { title: [{ text: { content: data.nombre } }] },
       Fecha: { date: { start: data.fecha } },
       Tipo: { select: { name: data.tipo } },
+      Empresa: { relation: [{ id: data.empresaId }] },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
   })) as PageObjectResponse;
@@ -588,8 +670,8 @@ export async function createHoliday(data: HolidayInput): Promise<Holiday> {
 }
 
 /** Crea feriados salteando fechas que ya existen (para poder reimportar sin duplicar). */
-export async function createHolidaysBulk(items: HolidayInput[]): Promise<number> {
-  const existing = await listHolidays();
+export async function createHolidaysBulk(empresaId: string, items: HolidayInput[]): Promise<number> {
+  const existing = await listHolidays(empresaId);
   const existingDates = new Set(existing.map((h) => h.fecha));
   let created = 0;
   for (const item of items) {
@@ -601,24 +683,61 @@ export async function createHolidaysBulk(items: HolidayInput[]): Promise<number>
   return created;
 }
 
+interface NagerHoliday {
+  date: string;
+  localName: string;
+  name: string;
+}
+
+/**
+ * Si el año todavía no tiene feriados nacionales cargados para esta empresa, los trae
+ * automáticamente desde la API pública de feriados de Argentina y los guarda. Si la API
+ * externa falla o no responde, no rompe nada: el calendario sigue funcionando sin esos feriados.
+ */
+export async function ensureHolidaysForYear(empresaId: string, year: number): Promise<void> {
+  const from = `${year}-01-01`;
+  const to = `${year}-12-31`;
+  const existing = await listHolidays(empresaId, from, to);
+  if (existing.some((h) => h.tipo === "Nacional")) return;
+
+  try {
+    const res = await fetch(`https://date.nager.at/api/v3/publicholidays/${year}/AR`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as NagerHoliday[];
+    const items: HolidayInput[] = data.map((h) => ({
+      nombre: h.localName || h.name,
+      fecha: h.date,
+      tipo: "Nacional",
+      empresaId,
+    }));
+    await createHolidaysBulk(empresaId, items);
+  } catch (err) {
+    console.error("No se pudo auto-importar feriados", err);
+  }
+}
+
 // ---------- shift templates (turnos) ----------
 
 function mapShiftTemplate(page: PageObjectResponse): ShiftTemplate {
   return {
     id: page.id,
+    empresaId: relationFirstId(page, "Empresa"),
     nombre: text(page, "Nombre"),
     horaEntrada: text(page, "Hora entrada"),
     horaSalida: text(page, "Hora salida"),
   };
 }
 
-export async function listShiftTemplates(): Promise<ShiftTemplate[]> {
+export async function listShiftTemplates(empresaId: string): Promise<ShiftTemplate[]> {
   const results: PageObjectResponse[] = [];
   let cursor: string | undefined;
   do {
     const res = await notion.dataSources.query({
       data_source_id: SHIFTS_DS,
       start_cursor: cursor ?? undefined,
+      filter: empresaFilter(empresaId),
       sorts: [{ property: "Nombre", direction: "ascending" }],
     });
     results.push(...(res.results as PageObjectResponse[]));
@@ -634,6 +753,7 @@ export async function createShiftTemplate(data: ShiftTemplateInput): Promise<Shi
       Nombre: { title: [{ text: { content: data.nombre } }] },
       "Hora entrada": { rich_text: [{ text: { content: data.horaEntrada } }] },
       "Hora salida": { rich_text: [{ text: { content: data.horaSalida } }] },
+      Empresa: { relation: [{ id: data.empresaId }] },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
   })) as PageObjectResponse;
@@ -645,6 +765,7 @@ export async function createShiftTemplate(data: ShiftTemplateInput): Promise<Shi
 function mapShiftAssignment(page: PageObjectResponse): ShiftAssignment {
   return {
     id: page.id,
+    empresaId: relationFirstId(page, "Empresa"),
     employeeId: relationFirstId(page, "Empleado"),
     shiftId: relationFirstId(page, "Turno"),
     fechaInicio: dateVal(page, "Fecha inicio") ?? "",
@@ -652,18 +773,21 @@ function mapShiftAssignment(page: PageObjectResponse): ShiftAssignment {
   };
 }
 
-export async function listShiftAssignments(employeeId?: string): Promise<ShiftAssignment[]> {
-  const filter = employeeId
-    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ({ property: "Empleado", relation: { contains: employeeId } } as any)
-    : undefined;
+export async function listShiftAssignments(
+  empresaId: string,
+  employeeId?: string
+): Promise<ShiftAssignment[]> {
+  const andFilters: PropertyFilter[] = [];
+  if (employeeId) {
+    andFilters.push({ property: "Empleado", relation: { contains: employeeId } });
+  }
   const results: PageObjectResponse[] = [];
   let cursor: string | undefined;
   do {
     const res = await notion.dataSources.query({
       data_source_id: SHIFT_ASSIGNMENTS_DS,
       start_cursor: cursor ?? undefined,
-      filter,
+      filter: withEmpresaFilter(empresaId, andFilters),
       sorts: [{ property: "Fecha inicio", direction: "descending" }],
     });
     results.push(...(res.results as PageObjectResponse[]));
@@ -685,6 +809,7 @@ export async function createShiftAssignment(
       },
       Empleado: { relation: [{ id: data.employeeId }] },
       Turno: { relation: [{ id: data.shiftId }] },
+      Empresa: { relation: [{ id: data.empresaId }] },
       "Fecha inicio": { date: { start: data.fechaInicio } },
       "Fecha fin": data.fechaFin ? { date: { start: data.fechaFin } } : { date: null },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -699,18 +824,19 @@ export async function createShiftAssignment(
  * de su ficha (para clientes que no usan turnos rotativos, nada cambia).
  */
 export async function resolveEmployeeSchedule(
+  empresaId: string,
   employeeId: string,
   date: string,
   employee: Employee
 ): Promise<{ horaEntrada: string; horaSalida: string; rotativo: boolean }> {
-  const assignments = await listShiftAssignments(employeeId);
+  const assignments = await listShiftAssignments(empresaId, employeeId);
   const match = assignments.find(
     (a) => date >= a.fechaInicio && (a.fechaFin === null || date <= a.fechaFin)
   );
   if (!match) {
     return { horaEntrada: employee.horarioEntrada, horaSalida: employee.horarioSalida, rotativo: false };
   }
-  const shifts = await listShiftTemplates();
+  const shifts = await listShiftTemplates(empresaId);
   const shift = shifts.find((s) => s.id === match.shiftId);
   if (!shift) {
     return { horaEntrada: employee.horarioEntrada, horaSalida: employee.horarioSalida, rotativo: false };
@@ -719,7 +845,7 @@ export async function resolveEmployeeSchedule(
 }
 
 /** True si el empleado tiene alguna asignación de turno cargada (usa rotativos). */
-export async function employeeUsesRotatingShifts(employeeId: string): Promise<boolean> {
-  const assignments = await listShiftAssignments(employeeId);
+export async function employeeUsesRotatingShifts(empresaId: string, employeeId: string): Promise<boolean> {
+  const assignments = await listShiftAssignments(empresaId, employeeId);
   return assignments.length > 0;
 }

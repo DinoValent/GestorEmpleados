@@ -48,6 +48,7 @@ export const authConfig: NextAuthConfig = {
       if (user) {
         token.rol = user.rol;
         token.employeeId = user.employeeId;
+        token.empresaId = user.empresaId;
       }
       return token;
     },
@@ -56,6 +57,7 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.sub as string;
         session.user.rol = token.rol as Rol;
         session.user.employeeId = (token.employeeId as string | null) ?? null;
+        session.user.empresaId = token.empresaId as string;
       }
       return session;
     },

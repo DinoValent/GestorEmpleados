@@ -1,10 +1,12 @@
 import AbsenceForm from "@/components/AbsenceForm";
 import { listEmployees } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
 
 export default async function NuevaAusenciaPage() {
-  const employees = await listEmployees();
+  const empresaId = (await getEmpresaId())!;
+  const employees = await listEmployees(empresaId);
   const activos = employees
     .filter((e) => e.estado === "Activo")
     .sort((a, b) => a.nombre.localeCompare(b.nombre));

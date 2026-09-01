@@ -1,5 +1,6 @@
 import EmployeeForm from "@/components/EmployeeForm";
 import { getEmployee } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
 
@@ -8,8 +9,9 @@ export default async function EditarEmpleadoPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const empresaId = (await getEmpresaId())!;
   const { id } = await params;
-  const employee = await getEmployee(id);
+  const employee = await getEmployee(id, empresaId);
 
   return (
     <div className="max-w-2xl space-y-6">

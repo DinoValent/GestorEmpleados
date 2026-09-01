@@ -6,7 +6,8 @@ import { checkIn } from "@/lib/notion";
 export async function POST(req: NextRequest) {
   const session = await auth();
   const employeeId = session?.user?.employeeId;
-  if (!employeeId) {
+  const empresaId = session?.user?.empresaId;
+  if (!employeeId || !empresaId) {
     return NextResponse.json({ error: "Tu cuenta no está vinculada a un empleado" }, { status: 403 });
   }
   try {
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const coords = { lat, lon, accuracy: typeof accuracy === "number" ? accuracy : undefined };
-    const record = await checkIn(employeeId, coords);
+    const record = await checkIn(empresaId, employeeId, coords);
     revalidatePath("/mi-fichaje");
     revalidatePath("/asistencia");
     return NextResponse.json(record, { status: 201 });

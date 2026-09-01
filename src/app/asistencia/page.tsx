@@ -2,6 +2,7 @@ import Link from "next/link";
 import AttendanceBoard from "@/components/AttendanceBoard";
 import { formatRangeLabel } from "@/lib/calendar";
 import { listAttendance, listEmployees, resolveEmployeeSchedule, todayISO } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
 
@@ -10,14 +11,15 @@ export default async function AsistenciaPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
+  const empresaId = (await getEmpresaId())!;
   const sp = await searchParams;
   const today = todayISO();
   const date = sp.date || today;
   const isToday = date === today;
 
   const [employees, records] = await Promise.all([
-    listEmployees(),
-    listAttendance({ dateFrom: date, dateTo: date }),
+    listEmployees(empresaId),
+    listAttendance(empresaId, { dateFrom: date, dateTo: date }),
   ]);
 
   const activos = employees
@@ -25,7 +27,9 @@ export default async function AsistenciaPage({
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   const scheduleEntries = await Promise.all(
-    activos.map(async (e) => [e.id, await resolveEmployeeSchedule(e.id, date, e)] as const)
+    activos.map(
+      async (e) => [e.id, await resolveEmployeeSchedule(empresaId, e.id, date, e)] as const
+    )
   );
   const schedules = Object.fromEntries(scheduleEntries);
 

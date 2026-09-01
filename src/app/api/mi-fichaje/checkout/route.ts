@@ -6,7 +6,8 @@ import { checkOut, getAttendanceRecord } from "@/lib/notion";
 export async function POST(req: NextRequest) {
   const session = await auth();
   const employeeId = session?.user?.employeeId;
-  if (!employeeId) {
+  const empresaId = session?.user?.empresaId;
+  if (!employeeId || !empresaId) {
     return NextResponse.json({ error: "Tu cuenta no está vinculada a un empleado" }, { status: 403 });
   }
   try {
@@ -14,11 +15,11 @@ export async function POST(req: NextRequest) {
     if (!recordId) {
       return NextResponse.json({ error: "Falta recordId" }, { status: 400 });
     }
-    const existing = await getAttendanceRecord(recordId);
+    const existing = await getAttendanceRecord(recordId, empresaId);
     if (existing.employeeId !== employeeId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    const record = await checkOut(recordId);
+    const record = await checkOut(empresaId, recordId);
     revalidatePath("/mi-fichaje");
     revalidatePath("/asistencia");
     return NextResponse.json(record);

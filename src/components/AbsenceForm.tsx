@@ -4,13 +4,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ABSENCE_TYPES, type AbsenceInput, type AbsenceType } from "@/lib/types";
 
+type AbsenceFormData = Omit<AbsenceInput, "empresaId">;
+
 export default function AbsenceForm({
   employees,
 }: {
   employees: { id: string; nombre: string }[];
 }) {
   const router = useRouter();
-  const [form, setForm] = useState<AbsenceInput>({
+  const [form, setForm] = useState<AbsenceFormData>({
     employeeId: employees[0]?.id ?? "",
     fechaInicio: "",
     fechaFin: "",
@@ -20,7 +22,7 @@ export default function AbsenceForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function set<K extends keyof AbsenceInput>(key: K, value: AbsenceInput[K]) {
+  function set<K extends keyof AbsenceFormData>(key: K, value: AbsenceFormData[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 

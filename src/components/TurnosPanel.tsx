@@ -31,7 +31,7 @@ export default function TurnosPanel({
     setSavingShift(true);
     setShiftError(null);
     try {
-      const body: ShiftTemplateInput = { nombre, horaEntrada, horaSalida };
+      const body: Omit<ShiftTemplateInput, "empresaId"> = { nombre, horaEntrada, horaSalida };
       const res = await fetch("/api/turnos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +58,7 @@ export default function TurnosPanel({
       if (!employeeId || !shiftId) {
         throw new Error("Elegí un empleado y un turno");
       }
-      const body: ShiftAssignmentInput = {
+      const body: Omit<ShiftAssignmentInput, "empresaId"> = {
         employeeId,
         shiftId,
         fechaInicio,

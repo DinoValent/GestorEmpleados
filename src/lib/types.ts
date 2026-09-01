@@ -1,7 +1,16 @@
 export type Estado = "Activo" | "Inactivo";
 
+export interface Company {
+  id: string;
+  nombre: string;
+  estado: Estado;
+}
+
+export type CompanyInput = Omit<Company, "id">;
+
 export interface Employee {
   id: string;
+  empresaId: string;
   nombre: string;
   legajo: string;
   dni: string;
@@ -20,6 +29,7 @@ export type EmployeeInput = Omit<Employee, "id">;
 
 export interface AttendanceRecord {
   id: string;
+  empresaId: string;
   registro: string;
   employeeId: string;
   fecha: string;
@@ -39,6 +49,7 @@ export type Rol = "Admin" | "Empleado";
 
 export interface AppUser {
   id: string;
+  empresaId: string;
   email: string;
   passwordHash: string;
   rol: Rol;
@@ -57,6 +68,7 @@ export type AbsenceType = (typeof ABSENCE_TYPES)[number];
 
 export interface Absence {
   id: string;
+  empresaId: string;
   employeeId: string;
   fechaInicio: string;
   fechaFin: string;
@@ -71,6 +83,7 @@ export type HolidayType = (typeof HOLIDAY_TYPES)[number];
 
 export interface Holiday {
   id: string;
+  empresaId: string;
   nombre: string;
   fecha: string;
   tipo: HolidayType;
@@ -80,6 +93,7 @@ export type HolidayInput = Omit<Holiday, "id">;
 
 export interface ShiftTemplate {
   id: string;
+  empresaId: string;
   nombre: string;
   horaEntrada: string;
   horaSalida: string;
@@ -89,6 +103,7 @@ export type ShiftTemplateInput = Omit<ShiftTemplate, "id">;
 
 export interface ShiftAssignment {
   id: string;
+  empresaId: string;
   employeeId: string;
   shiftId: string;
   fechaInicio: string;

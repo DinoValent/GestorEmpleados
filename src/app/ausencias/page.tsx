@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listAbsences, listEmployees } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 import type { AbsenceType } from "@/lib/types";
 
 export const revalidate = 30;
@@ -13,7 +14,11 @@ const TIPO_STYLE: Record<AbsenceType, string> = {
 };
 
 export default async function AusenciasPage() {
-  const [absences, employees] = await Promise.all([listAbsences(), listEmployees()]);
+  const empresaId = (await getEmpresaId())!;
+  const [absences, employees] = await Promise.all([
+    listAbsences(empresaId),
+    listEmployees(empresaId),
+  ]);
   const employeeName = new Map(employees.map((e) => [e.id, e.nombre]));
 
   const sorted = [...absences].sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio));

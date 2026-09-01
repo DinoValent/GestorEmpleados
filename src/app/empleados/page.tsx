@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { listEmployees } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
 
 export default async function EmpleadosPage() {
-  const employees = await listEmployees();
+  const empresaId = (await getEmpresaId())!;
+  const employees = await listEmployees(empresaId);
 
   return (
     <div className="space-y-6">

@@ -4,6 +4,7 @@ import StackedHoursChart, { type HoursBar } from "@/components/charts/StackedHou
 import { dailyHoursChart } from "@/lib/chartData";
 import { DEFAULT_COST_PARAMS, estimateCost } from "@/lib/cost";
 import { listAttendance, listEmployees, listHolidays, todayISO } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function ReportesPage({
     multiplicadorFeriado?: string;
   }>;
 }) {
+  const empresaId = (await getEmpresaId())!;
   const sp = await searchParams;
   const dateFrom = sp.dateFrom || firstDayOfMonth();
   const dateTo = sp.dateTo || todayLocal();
@@ -40,9 +42,9 @@ export default async function ReportesPage({
   };
 
   const [employees, records, holidays] = await Promise.all([
-    listEmployees(),
-    listAttendance({ dateFrom, dateTo, employeeId: employeeId || undefined }),
-    listHolidays(dateFrom, dateTo),
+    listEmployees(empresaId),
+    listAttendance(empresaId, { dateFrom, dateTo, employeeId: employeeId || undefined }),
+    listHolidays(empresaId, dateFrom, dateTo),
   ]);
   const holidayDates = new Set(holidays.map((h) => h.fecha));
   const recordsByEmployee = new Map<string, typeof records>();

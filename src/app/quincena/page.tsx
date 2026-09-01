@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatRangeLabel, getMonthRange, getWeekRange } from "@/lib/calendar";
 import { listAttendance, listEmployees, listShiftAssignments } from "@/lib/notion";
 import { getQuincenaRange, nextQuincenaRef, prevQuincenaRef } from "@/lib/quincena";
+import { getEmpresaId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -59,14 +60,15 @@ export default async function QuincenaPage({
 }: {
   searchParams: Promise<{ tipo?: string; ref?: string }>;
 }) {
+  const empresaId = (await getEmpresaId())!;
   const sp = await searchParams;
   const tipo: Tipo = sp.tipo === "mes" || sp.tipo === "semana" ? sp.tipo : "quincena";
   const range = getRange(tipo, sp.ref);
   const info = TIPO_INFO[tipo];
 
   const [employees, records] = await Promise.all([
-    listEmployees(),
-    listAttendance({ dateFrom: range.from, dateTo: range.to }),
+    listEmployees(empresaId),
+    listAttendance(empresaId, { dateFrom: range.from, dateTo: range.to }),
   ]);
 
   const activos = employees
@@ -91,7 +93,7 @@ export default async function QuincenaPage({
 
   const rotativoEntries = await Promise.all(
     activos.map(async (e) => {
-      const assignments = await listShiftAssignments(e.id);
+      const assignments = await listShiftAssignments(empresaId, e.id);
       const overlaps = assignments.some(
         (a) => a.fechaInicio <= range.to && (a.fechaFin === null || a.fechaFin >= range.from)
       );

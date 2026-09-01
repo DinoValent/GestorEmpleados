@@ -1,11 +1,14 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { createAbsence, listAbsences } from "@/lib/notion";
+import { createAbsence, getEmployee, listAbsences } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 import type { AbsenceInput } from "@/lib/types";
 
 export async function GET() {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    const absences = await listAbsences();
+    const absences = await listAbsences(empresaId);
     return NextResponse.json(absences);
   } catch (err) {
     console.error(err);
@@ -14,8 +17,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    const data = (await req.json()) as AbsenceInput;
+    const data = (await req.json()) as Omit<AbsenceInput, "empresaId">;
     if (!data.employeeId || !data.fechaInicio || !data.fechaFin) {
       return NextResponse.json(
         { error: "Faltan datos: empleado, fecha de inicio o fecha de fin" },
@@ -28,7 +33,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    const absence = await createAbsence(data);
+    await getEmployee(data.employeeId, empresaId); // valida que el empleado sea de esta empresa
+    const absence = await createAbsence({ ...data, empresaId });
     revalidatePath("/ausencias");
     revalidatePath("/calendario");
     return NextResponse.json(absence, { status: 201 });

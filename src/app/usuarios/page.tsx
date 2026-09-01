@@ -1,10 +1,15 @@
 import UsuarioForm from "@/components/UsuarioForm";
 import { listEmployees, listUsers } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
 
 export default async function UsuariosPage() {
-  const [users, employees] = await Promise.all([listUsers(), listEmployees()]);
+  const empresaId = (await getEmpresaId())!;
+  const [users, employees] = await Promise.all([
+    listUsers(empresaId),
+    listEmployees(empresaId),
+  ]);
   const employeeName = new Map(employees.map((e) => [e.id, e.nombre]));
   const activos = employees
     .filter((e) => e.estado === "Activo")

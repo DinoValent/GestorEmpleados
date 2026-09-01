@@ -1,14 +1,16 @@
 import TurnosPanel from "@/components/TurnosPanel";
 import { todayISO } from "@/lib/calendar";
 import { listEmployees, listShiftAssignments, listShiftTemplates } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
 
 export default async function TurnosPage() {
+  const empresaId = (await getEmpresaId())!;
   const [employees, shifts, assignments] = await Promise.all([
-    listEmployees(),
-    listShiftTemplates(),
-    listShiftAssignments(),
+    listEmployees(empresaId),
+    listShiftTemplates(empresaId),
+    listShiftAssignments(empresaId),
   ]);
   const activos = employees
     .filter((e) => e.estado === "Activo")

@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_COST_PARAMS, estimateCost } from "@/lib/cost";
 import { toCsv } from "@/lib/csv";
 import { listAttendance, listEmployees, listHolidays } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 import type { AttendanceRecord } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const { searchParams } = new URL(req.url);
     const dateFrom = searchParams.get("dateFrom") ?? undefined;
@@ -17,9 +20,9 @@ export async function GET(req: NextRequest) {
       Number(searchParams.get("multiplicadorFeriado")) || DEFAULT_COST_PARAMS.multiplicadorFeriado;
 
     const [employees, records, holidays] = await Promise.all([
-      listEmployees(),
-      listAttendance({ dateFrom, dateTo, employeeId }),
-      listHolidays(dateFrom, dateTo),
+      listEmployees(empresaId),
+      listAttendance(empresaId, { dateFrom, dateTo, employeeId }),
+      listHolidays(empresaId, dateFrom, dateTo),
     ]);
     const employeeName = new Map(employees.map((e) => [e.id, e.nombre]));
     const employeeSalario = new Map(employees.map((e) => [e.id, e.salarioBase]));

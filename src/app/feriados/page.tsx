@@ -1,5 +1,6 @@
 import FeriadosPanel from "@/components/FeriadosPanel";
 import { listHolidays } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 import type { HolidayType } from "@/lib/types";
 
 export const revalidate = 30;
@@ -11,7 +12,8 @@ const TIPO_STYLE: Record<HolidayType, string> = {
 };
 
 export default async function FeriadosPage() {
-  const holidays = await listHolidays();
+  const empresaId = (await getEmpresaId())!;
+  const holidays = await listHolidays(empresaId);
   const sorted = [...holidays].sort((a, b) => a.fecha.localeCompare(b.fecha));
 
   return (

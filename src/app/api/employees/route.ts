@@ -1,11 +1,14 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createEmployee, listEmployees } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 import type { EmployeeInput } from "@/lib/types";
 
 export async function GET() {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    const employees = await listEmployees();
+    const employees = await listEmployees(empresaId);
     return NextResponse.json(employees);
   } catch (err) {
     console.error(err);
@@ -14,12 +17,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    const data = (await req.json()) as EmployeeInput;
+    const data = (await req.json()) as Omit<EmployeeInput, "empresaId">;
     if (!data.nombre?.trim()) {
       return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
     }
-    const employee = await createEmployee(data);
+    const employee = await createEmployee({ ...data, empresaId });
     revalidatePath("/empleados");
     revalidatePath("/");
     return NextResponse.json(employee, { status: 201 });

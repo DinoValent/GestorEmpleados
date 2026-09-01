@@ -1,14 +1,17 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { checkOut } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const { recordId } = (await req.json()) as { recordId?: string };
     if (!recordId) {
       return NextResponse.json({ error: "Falta recordId" }, { status: 400 });
     }
-    const record = await checkOut(recordId);
+    const record = await checkOut(empresaId, recordId);
     revalidatePath("/asistencia");
     revalidatePath("/");
     return NextResponse.json(record);
