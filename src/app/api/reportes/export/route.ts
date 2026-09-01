@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DEFAULT_COST_PARAMS, estimateCost } from "@/lib/cost";
 import { toCsv } from "@/lib/csv";
-import { listAttendance, listEmployees } from "@/lib/notion";
+import { listAttendance, listEmployees, listHolidays } from "@/lib/notion";
+import type { AttendanceRecord } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,13 +13,17 @@ export async function GET(req: NextRequest) {
     const horasBase = Number(searchParams.get("horasBase")) || DEFAULT_COST_PARAMS.horasBase;
     const multiplicador =
       Number(searchParams.get("multiplicador")) || DEFAULT_COST_PARAMS.multiplicador;
+    const multiplicadorFeriado =
+      Number(searchParams.get("multiplicadorFeriado")) || DEFAULT_COST_PARAMS.multiplicadorFeriado;
 
-    const [employees, records] = await Promise.all([
+    const [employees, records, holidays] = await Promise.all([
       listEmployees(),
       listAttendance({ dateFrom, dateTo, employeeId }),
+      listHolidays(dateFrom, dateTo),
     ]);
     const employeeName = new Map(employees.map((e) => [e.id, e.nombre]));
     const employeeSalario = new Map(employees.map((e) => [e.id, e.salarioBase]));
+    const holidayDates = new Set(holidays.map((h) => h.fecha));
 
     type Row = {
       nombre: string;
@@ -26,6 +31,7 @@ export async function GET(req: NextRequest) {
       horasExtra: number;
       tardanzas: number;
       minutosTardanza: number;
+      registros: AttendanceRecord[];
     };
     const summary = new Map<string, Row>();
     for (const r of records) {
@@ -35,6 +41,7 @@ export async function GET(req: NextRequest) {
         horasExtra: 0,
         tardanzas: 0,
         minutosTardanza: 0,
+        registros: [],
       };
       row.horasTrabajadas += r.horasTrabajadas ?? 0;
       row.horasExtra += r.horasExtra ?? 0;
@@ -42,6 +49,7 @@ export async function GET(req: NextRequest) {
         row.tardanzas += 1;
         row.minutosTardanza += r.minutosTardanza ?? 0;
       }
+      row.registros.push(r);
       summary.set(r.employeeId, row);
     }
 
@@ -50,9 +58,9 @@ export async function GET(req: NextRequest) {
       .map(([employeeId, row]) => {
         const costo = estimateCost(
           employeeSalario.get(employeeId) ?? null,
-          row.horasTrabajadas,
-          row.horasExtra,
-          { horasBase, multiplicador }
+          row.registros,
+          holidayDates,
+          { horasBase, multiplicador, multiplicadorFeriado }
         );
         return [
           row.nombre,

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { colorForEmployee, recordSpan, todayISO } from "@/lib/calendar";
-import type { AttendanceRecord, Employee } from "@/lib/types";
+import type { AttendanceRecord, Employee, Holiday } from "@/lib/types";
 
 const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
 
@@ -9,13 +9,16 @@ export default function MonthGrid({
   month,
   recordsByDay,
   employees,
+  holidays = [],
 }: {
   weeks: string[][];
   month: number;
   recordsByDay: Map<string, AttendanceRecord[]>;
   employees: Employee[];
+  holidays?: Holiday[];
 }) {
   const today = todayISO();
+  const holidayByDate = new Map(holidays.map((h) => [h.fecha, h]));
 
   return (
     <div className="card p-0">
@@ -44,13 +47,14 @@ export default function MonthGrid({
               }, 0);
               const employeeIds = Array.from(new Set(records.map((r) => r.employeeId)));
               const hasLate = records.some((r) => r.llegadaTarde);
+              const holiday = holidayByDate.get(d);
 
               return (
                 <Link
                   key={d}
                   href={`/calendario?view=day&ref=${d}`}
                   className={`relative flex min-h-[92px] flex-col gap-1.5 border-l border-slate-100 p-2 first:border-l-0 hover:bg-slate-50 ${
-                    inMonth ? "" : "bg-slate-50/60"
+                    holiday ? "bg-amber-50/60" : inMonth ? "" : "bg-slate-50/60"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -72,6 +76,11 @@ export default function MonthGrid({
                       />
                     )}
                   </div>
+                  {holiday && (
+                    <p className="truncate text-[10px] font-medium text-amber-700" title={holiday.nombre}>
+                      🎉 {holiday.nombre}
+                    </p>
+                  )}
                   {records.length > 0 && (
                     <>
                       <p className="font-mono text-xs font-semibold text-slate-600">

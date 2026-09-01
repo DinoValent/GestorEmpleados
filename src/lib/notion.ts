@@ -9,7 +9,14 @@ import type {
   AttendanceRecord,
   Employee,
   EmployeeInput,
+  Holiday,
+  HolidayInput,
+  HolidayType,
   Rol,
+  ShiftAssignment,
+  ShiftAssignmentInput,
+  ShiftTemplate,
+  ShiftTemplateInput,
 } from "./types";
 import { nowHHMM, todayISO } from "./timezone";
 
@@ -23,6 +30,12 @@ const ABSENCES_DB = process.env.NOTION_ABSENCES_DB_ID as string;
 const ABSENCES_DS = process.env.NOTION_ABSENCES_DATA_SOURCE_ID as string;
 const USERS_DB = process.env.NOTION_USERS_DB_ID as string;
 const USERS_DS = process.env.NOTION_USERS_DATA_SOURCE_ID as string;
+const HOLIDAYS_DB = process.env.NOTION_HOLIDAYS_DB_ID as string;
+const HOLIDAYS_DS = process.env.NOTION_HOLIDAYS_DATA_SOURCE_ID as string;
+const SHIFTS_DB = process.env.NOTION_SHIFTS_DB_ID as string;
+const SHIFTS_DS = process.env.NOTION_SHIFTS_DATA_SOURCE_ID as string;
+const SHIFT_ASSIGNMENTS_DB = process.env.NOTION_SHIFT_ASSIGNMENTS_DB_ID as string;
+const SHIFT_ASSIGNMENTS_DS = process.env.NOTION_SHIFT_ASSIGNMENTS_DATA_SOURCE_ID as string;
 
 // ---------- helpers ----------
 
@@ -263,7 +276,8 @@ export async function checkIn(
 
   const horaEntrada = nowHHMM();
   const entradaMin = toMinutes(horaEntrada)!;
-  const habitualMin = toMinutes(employee.horarioEntrada);
+  const schedule = await resolveEmployeeSchedule(employeeId, date, employee);
+  const habitualMin = toMinutes(schedule.horaEntrada);
 
   let llegadaTarde = false;
   let minutosTardanza = 0;
@@ -302,12 +316,12 @@ interface DerivedAttendance {
 }
 
 function computeDerived(
-  employee: Employee,
+  schedule: { horaEntrada: string; horaSalida: string },
   horaEntrada: string,
   horaSalida: string | null
 ): DerivedAttendance {
   const entradaMin = toMinutes(horaEntrada);
-  const habitualEntradaMin = toMinutes(employee.horarioEntrada);
+  const habitualEntradaMin = toMinutes(schedule.horaEntrada);
 
   let llegadaTarde = false;
   let minutosTardanza = 0;
@@ -324,7 +338,7 @@ function computeDerived(
   const salidaMin = horaSalida ? toMinutes(horaSalida) : null;
   if (entradaMin !== null && salidaMin !== null) {
     horasTrabajadas = Math.max(0, Math.round(((salidaMin - entradaMin) / 60) * 100) / 100);
-    const habitualSalidaMin = toMinutes(employee.horarioSalida);
+    const habitualSalidaMin = toMinutes(schedule.horaSalida);
     const jornadaEstandar =
       habitualEntradaMin !== null && habitualSalidaMin !== null
         ? Math.max(0, (habitualSalidaMin - habitualEntradaMin) / 60)
@@ -340,7 +354,8 @@ export async function checkOut(recordId: string): Promise<AttendanceRecord> {
   const record = mapAttendance(page);
   const employee = await getEmployee(record.employeeId);
   const horaSalida = nowHHMM();
-  const derived = computeDerived(employee, record.horaEntrada, horaSalida);
+  const schedule = await resolveEmployeeSchedule(record.employeeId, record.fecha, employee);
+  const derived = computeDerived(schedule, record.horaEntrada, horaSalida);
 
   const updated = (await notion.pages.update({
     page_id: recordId,
@@ -362,7 +377,8 @@ export async function updateAttendanceTimes(
 ): Promise<AttendanceRecord> {
   const record = await getAttendanceRecord(recordId);
   const employee = await getEmployee(record.employeeId);
-  const derived = computeDerived(employee, horaEntrada, horaSalida);
+  const schedule = await resolveEmployeeSchedule(record.employeeId, record.fecha, employee);
+  const derived = computeDerived(schedule, horaEntrada, horaSalida);
 
   const updated = (await notion.pages.update({
     page_id: recordId,
@@ -523,4 +539,187 @@ export async function upsertUser(data: {
         properties,
       })) as PageObjectResponse);
   return mapUser(page);
+}
+
+// ---------- holidays (feriados) ----------
+
+function mapHoliday(page: PageObjectResponse): Holiday {
+  return {
+    id: page.id,
+    nombre: text(page, "Nombre"),
+    fecha: dateVal(page, "Fecha") ?? "",
+    tipo: (selectVal(page, "Tipo") || "Nacional") as HolidayType,
+  };
+}
+
+export async function listHolidays(dateFrom?: string, dateTo?: string): Promise<Holiday[]> {
+  const andFilters: PropertyFilter[] = [];
+  if (dateFrom) andFilters.push({ property: "Fecha", date: { on_or_after: dateFrom } });
+  if (dateTo) andFilters.push({ property: "Fecha", date: { on_or_before: dateTo } });
+  const filter =
+    andFilters.length === 0 ? undefined : andFilters.length === 1 ? andFilters[0] : { and: andFilters };
+
+  const results: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.dataSources.query({
+      data_source_id: HOLIDAYS_DS,
+      start_cursor: cursor ?? undefined,
+      filter,
+      sorts: [{ property: "Fecha", direction: "ascending" }],
+    });
+    results.push(...(res.results as PageObjectResponse[]));
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results.map(mapHoliday);
+}
+
+export async function createHoliday(data: HolidayInput): Promise<Holiday> {
+  const page = (await notion.pages.create({
+    parent: { database_id: HOLIDAYS_DB },
+    properties: {
+      Nombre: { title: [{ text: { content: data.nombre } }] },
+      Fecha: { date: { start: data.fecha } },
+      Tipo: { select: { name: data.tipo } },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  })) as PageObjectResponse;
+  return mapHoliday(page);
+}
+
+/** Crea feriados salteando fechas que ya existen (para poder reimportar sin duplicar). */
+export async function createHolidaysBulk(items: HolidayInput[]): Promise<number> {
+  const existing = await listHolidays();
+  const existingDates = new Set(existing.map((h) => h.fecha));
+  let created = 0;
+  for (const item of items) {
+    if (existingDates.has(item.fecha)) continue;
+    await createHoliday(item);
+    existingDates.add(item.fecha);
+    created += 1;
+  }
+  return created;
+}
+
+// ---------- shift templates (turnos) ----------
+
+function mapShiftTemplate(page: PageObjectResponse): ShiftTemplate {
+  return {
+    id: page.id,
+    nombre: text(page, "Nombre"),
+    horaEntrada: text(page, "Hora entrada"),
+    horaSalida: text(page, "Hora salida"),
+  };
+}
+
+export async function listShiftTemplates(): Promise<ShiftTemplate[]> {
+  const results: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.dataSources.query({
+      data_source_id: SHIFTS_DS,
+      start_cursor: cursor ?? undefined,
+      sorts: [{ property: "Nombre", direction: "ascending" }],
+    });
+    results.push(...(res.results as PageObjectResponse[]));
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results.map(mapShiftTemplate);
+}
+
+export async function createShiftTemplate(data: ShiftTemplateInput): Promise<ShiftTemplate> {
+  const page = (await notion.pages.create({
+    parent: { database_id: SHIFTS_DB },
+    properties: {
+      Nombre: { title: [{ text: { content: data.nombre } }] },
+      "Hora entrada": { rich_text: [{ text: { content: data.horaEntrada } }] },
+      "Hora salida": { rich_text: [{ text: { content: data.horaSalida } }] },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  })) as PageObjectResponse;
+  return mapShiftTemplate(page);
+}
+
+// ---------- shift assignments (asignaciones de turno) ----------
+
+function mapShiftAssignment(page: PageObjectResponse): ShiftAssignment {
+  return {
+    id: page.id,
+    employeeId: relationFirstId(page, "Empleado"),
+    shiftId: relationFirstId(page, "Turno"),
+    fechaInicio: dateVal(page, "Fecha inicio") ?? "",
+    fechaFin: dateVal(page, "Fecha fin"),
+  };
+}
+
+export async function listShiftAssignments(employeeId?: string): Promise<ShiftAssignment[]> {
+  const filter = employeeId
+    ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ({ property: "Empleado", relation: { contains: employeeId } } as any)
+    : undefined;
+  const results: PageObjectResponse[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await notion.dataSources.query({
+      data_source_id: SHIFT_ASSIGNMENTS_DS,
+      start_cursor: cursor ?? undefined,
+      filter,
+      sorts: [{ property: "Fecha inicio", direction: "descending" }],
+    });
+    results.push(...(res.results as PageObjectResponse[]));
+    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+  } while (cursor);
+  return results.map(mapShiftAssignment);
+}
+
+export async function createShiftAssignment(
+  data: ShiftAssignmentInput,
+  employeeName: string,
+  shiftName: string
+): Promise<ShiftAssignment> {
+  const page = (await notion.pages.create({
+    parent: { database_id: SHIFT_ASSIGNMENTS_DB },
+    properties: {
+      Titulo: {
+        title: [{ text: { content: `${employeeName} - ${shiftName} desde ${data.fechaInicio}` } }],
+      },
+      Empleado: { relation: [{ id: data.employeeId }] },
+      Turno: { relation: [{ id: data.shiftId }] },
+      "Fecha inicio": { date: { start: data.fechaInicio } },
+      "Fecha fin": data.fechaFin ? { date: { start: data.fechaFin } } : { date: null },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  })) as PageObjectResponse;
+  return mapShiftAssignment(page);
+}
+
+/**
+ * Resuelve qué horario le toca a un empleado en una fecha puntual: si tiene una
+ * asignación de turno vigente ese día, usa ese turno; si no, cae al horario fijo
+ * de su ficha (para clientes que no usan turnos rotativos, nada cambia).
+ */
+export async function resolveEmployeeSchedule(
+  employeeId: string,
+  date: string,
+  employee: Employee
+): Promise<{ horaEntrada: string; horaSalida: string; rotativo: boolean }> {
+  const assignments = await listShiftAssignments(employeeId);
+  const match = assignments.find(
+    (a) => date >= a.fechaInicio && (a.fechaFin === null || date <= a.fechaFin)
+  );
+  if (!match) {
+    return { horaEntrada: employee.horarioEntrada, horaSalida: employee.horarioSalida, rotativo: false };
+  }
+  const shifts = await listShiftTemplates();
+  const shift = shifts.find((s) => s.id === match.shiftId);
+  if (!shift) {
+    return { horaEntrada: employee.horarioEntrada, horaSalida: employee.horarioSalida, rotativo: false };
+  }
+  return { horaEntrada: shift.horaEntrada, horaSalida: shift.horaSalida, rotativo: true };
+}
+
+/** True si el empleado tiene alguna asignación de turno cargada (usa rotativos). */
+export async function employeeUsesRotatingShifts(employeeId: string): Promise<boolean> {
+  const assignments = await listShiftAssignments(employeeId);
+  return assignments.length > 0;
 }

@@ -9,16 +9,24 @@ interface TimeDraft {
   horaSalida: string;
 }
 
+interface ScheduleInfo {
+  horaEntrada: string;
+  horaSalida: string;
+  rotativo: boolean;
+}
+
 export default function AttendanceBoard({
   employees,
   records,
   isToday = true,
   dateLabel,
+  schedules = {},
 }: {
   employees: Employee[];
   records: AttendanceRecord[];
   isToday?: boolean;
   dateLabel?: string;
+  schedules?: Record<string, ScheduleInfo>;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
@@ -133,6 +141,7 @@ export default function AttendanceBoard({
             <thead>
               <tr>
                 <th>Empleado</th>
+                <th>Horario habitual</th>
                 <th>Estado</th>
                 <th></th>
               </tr>
@@ -140,7 +149,7 @@ export default function AttendanceBoard({
             <tbody>
               {employees.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-8 text-center text-slate-400">
+                  <td colSpan={4} className="py-8 text-center text-slate-400">
                     No hay empleados activos.
                   </td>
                 </tr>
@@ -154,9 +163,19 @@ export default function AttendanceBoard({
                 const last = openRecord ?? latestClosed;
                 const open = !!openRecord;
 
+                const schedule = schedules[emp.id];
+                const horaEntrada = schedule?.horaEntrada || emp.horarioEntrada;
+                const horaSalida = schedule?.horaSalida || emp.horarioSalida;
+
                 return (
                   <tr key={emp.id}>
                     <td className="font-medium">{emp.nombre}</td>
+                    <td className="font-mono text-xs text-slate-500 whitespace-nowrap">
+                      {horaEntrada || "—"} a {horaSalida || "—"}
+                      {schedule?.rotativo && (
+                        <span className="badge ml-1.5 bg-indigo-100 text-indigo-700">Rotativo</span>
+                      )}
+                    </td>
                     <td>
                       {!last && <span className="badge-gray">Sin fichar hoy</span>}
                       {last && open && (

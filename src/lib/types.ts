@@ -65,3 +65,34 @@ export interface Absence {
 }
 
 export type AbsenceInput = Omit<Absence, "id">;
+
+export const HOLIDAY_TYPES = ["Nacional", "Provincial", "Personalizado"] as const;
+export type HolidayType = (typeof HOLIDAY_TYPES)[number];
+
+export interface Holiday {
+  id: string;
+  nombre: string;
+  fecha: string;
+  tipo: HolidayType;
+}
+
+export type HolidayInput = Omit<Holiday, "id">;
+
+export interface ShiftTemplate {
+  id: string;
+  nombre: string;
+  horaEntrada: string;
+  horaSalida: string;
+}
+
+export type ShiftTemplateInput = Omit<ShiftTemplate, "id">;
+
+export interface ShiftAssignment {
+  id: string;
+  employeeId: string;
+  shiftId: string;
+  fechaInicio: string;
+  fechaFin: string | null;
+}
+
+export type ShiftAssignmentInput = Omit<ShiftAssignment, "id">;

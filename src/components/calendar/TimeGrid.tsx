@@ -1,5 +1,5 @@
 import { absenceOnDate, recordSpan, todayISO } from "@/lib/calendar";
-import type { Absence, AttendanceRecord, Employee } from "@/lib/types";
+import type { Absence, AttendanceRecord, Employee, Holiday } from "@/lib/types";
 
 const DIA_LABEL = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB", "DOM"];
 const NAME_COL = 160;
@@ -49,11 +49,13 @@ export default function TimeGrid({
   recordsByDay,
   employees,
   absences = [],
+  holidays = [],
 }: {
   days: string[];
   recordsByDay: Map<string, AttendanceRecord[]>;
   employees: Employee[];
   absences?: Absence[];
+  holidays?: Holiday[];
 }) {
   const isWeek = days.length > 1;
 
@@ -69,7 +71,13 @@ export default function TimeGrid({
     <div className="card p-0">
       <div className="overflow-x-auto">
         {isWeek ? (
-          <WeekRoster days={days} recordsByDay={recordsByDay} employees={employees} absences={absences} />
+          <WeekRoster
+            days={days}
+            recordsByDay={recordsByDay}
+            employees={employees}
+            absences={absences}
+            holidays={holidays}
+          />
         ) : (
           <DayTimeline
             date={days[0]}
@@ -225,13 +233,16 @@ function WeekRoster({
   recordsByDay,
   employees,
   absences,
+  holidays,
 }: {
   days: string[];
   recordsByDay: Map<string, AttendanceRecord[]>;
   employees: Employee[];
   absences: Absence[];
+  holidays: Holiday[];
 }) {
   const today = todayISO();
+  const holidayByDate = new Map(holidays.map((h) => [h.fecha, h]));
 
   return (
     <div style={{ minWidth: NAME_COL + days.length * 128 }}>
@@ -241,11 +252,12 @@ function WeekRoster({
         {days.map((d) => {
           const date = new Date(`${d}T00:00:00`);
           const isToday = d === today;
+          const holiday = holidayByDate.get(d);
           return (
             <div
               key={d}
               className={`min-w-[128px] flex-1 border-l border-slate-100 py-2 text-center ${
-                isToday ? "bg-indigo-50" : ""
+                holiday ? "bg-amber-50" : isToday ? "bg-indigo-50" : ""
               }`}
             >
               <p className="text-[11px] font-semibold tracking-wide text-slate-400">
@@ -254,6 +266,11 @@ function WeekRoster({
               <p className={`text-sm font-semibold ${isToday ? "text-indigo-700" : "text-slate-700"}`}>
                 {date.getDate()}
               </p>
+              {holiday && (
+                <p className="truncate px-1 text-[10px] font-medium text-amber-700" title={holiday.nombre}>
+                  🎉 {holiday.nombre}
+                </p>
+              )}
             </div>
           );
         })}

@@ -3,7 +3,7 @@ import WeeklySummaryPanel from "@/components/WeeklySummaryPanel";
 import StackedHoursChart, { type HoursBar } from "@/components/charts/StackedHoursChart";
 import { dailyHoursChart } from "@/lib/chartData";
 import { DEFAULT_COST_PARAMS, estimateCost } from "@/lib/cost";
-import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
+import { listAttendance, listEmployees, listHolidays, todayISO } from "@/lib/notion";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +25,7 @@ export default async function ReportesPage({
     employeeId?: string;
     horasBase?: string;
     multiplicador?: string;
+    multiplicadorFeriado?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -34,12 +35,22 @@ export default async function ReportesPage({
   const costParams = {
     horasBase: Number(sp.horasBase) || DEFAULT_COST_PARAMS.horasBase,
     multiplicador: Number(sp.multiplicador) || DEFAULT_COST_PARAMS.multiplicador,
+    multiplicadorFeriado:
+      Number(sp.multiplicadorFeriado) || DEFAULT_COST_PARAMS.multiplicadorFeriado,
   };
 
-  const [employees, records] = await Promise.all([
+  const [employees, records, holidays] = await Promise.all([
     listEmployees(),
     listAttendance({ dateFrom, dateTo, employeeId: employeeId || undefined }),
+    listHolidays(dateFrom, dateTo),
   ]);
+  const holidayDates = new Set(holidays.map((h) => h.fecha));
+  const recordsByEmployee = new Map<string, typeof records>();
+  for (const r of records) {
+    const list = recordsByEmployee.get(r.employeeId) ?? [];
+    list.push(r);
+    recordsByEmployee.set(r.employeeId, list);
+  }
 
   const employeeName = new Map(employees.map((e) => [e.id, e.nombre]));
   const employeeEmail = new Map(employees.map((e) => [e.id, e.email]));
@@ -79,7 +90,12 @@ export default async function ReportesPage({
   const costos = new Map<string, number | null>(
     summary.map((s) => [
       s.employeeId,
-      estimateCost(employeeSalario.get(s.employeeId) ?? null, s.horasTrabajadas, s.horasExtra, costParams),
+      estimateCost(
+        employeeSalario.get(s.employeeId) ?? null,
+        recordsByEmployee.get(s.employeeId) ?? [],
+        holidayDates,
+        costParams
+      ),
     ])
   );
   const totalCosto = Array.from(costos.values()).reduce(
@@ -88,7 +104,7 @@ export default async function ReportesPage({
   );
   const exportUrl = `/api/reportes/export?dateFrom=${dateFrom}&dateTo=${dateTo}${
     employeeId ? `&employeeId=${employeeId}` : ""
-  }&horasBase=${costParams.horasBase}&multiplicador=${costParams.multiplicador}`;
+  }&horasBase=${costParams.horasBase}&multiplicador=${costParams.multiplicador}&multiplicadorFeriado=${costParams.multiplicadorFeriado}`;
 
   const llegadasTarde = records
     .filter((r) => r.llegadaTarde)
@@ -164,6 +180,16 @@ export default async function ReportesPage({
             className="input w-28"
           />
         </div>
+        <div>
+          <label className="label">Multiplicador feriado</label>
+          <input
+            type="number"
+            step="0.1"
+            name="multiplicadorFeriado"
+            defaultValue={costParams.multiplicadorFeriado}
+            className="input w-28"
+          />
+        </div>
         <button type="submit" className="btn-primary">
           Filtrar
         </button>
@@ -183,8 +209,15 @@ export default async function ReportesPage({
         <h2 className="mb-3 text-lg font-semibold">Horas por empleado</h2>
         <p className="mb-3 text-xs text-slate-400">
           El costo estimado es una aproximación: sueldo base ÷ {costParams.horasBase} hs
-          + horas extra × {costParams.multiplicador}. No reemplaza el cálculo real de
+          + horas extra × {costParams.multiplicador}, y en los feriados todas las horas
+          se pagan × {costParams.multiplicadorFeriado}. No reemplaza el cálculo real de
           nómina.
+          {holidays.length > 0 && (
+            <>
+              {" "}
+              Feriados en este período: {holidays.map((h) => `${h.fecha} (${h.nombre})`).join(", ")}.
+            </>
+          )}
         </p>
         <div className="card overflow-x-auto p-0">
           <table className="table-base">

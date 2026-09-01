@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AttendanceBoard from "@/components/AttendanceBoard";
 import { formatRangeLabel } from "@/lib/calendar";
-import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
+import { listAttendance, listEmployees, resolveEmployeeSchedule, todayISO } from "@/lib/notion";
 
 export const revalidate = 30;
 
@@ -23,6 +23,11 @@ export default async function AsistenciaPage({
   const activos = employees
     .filter((e) => e.estado === "Activo")
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const scheduleEntries = await Promise.all(
+    activos.map(async (e) => [e.id, await resolveEmployeeSchedule(e.id, date, e)] as const)
+  );
+  const schedules = Object.fromEntries(scheduleEntries);
 
   return (
     <div className="space-y-6">
@@ -54,6 +59,7 @@ export default async function AsistenciaPage({
         records={records}
         isToday={isToday}
         dateLabel={formatRangeLabel(date, date)}
+        schedules={schedules}
       />
     </div>
   );

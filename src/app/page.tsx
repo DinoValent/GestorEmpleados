@@ -3,33 +3,22 @@ import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
 
 export const revalidate = 30;
 
-function monthRange(): { from: string; to: string } {
-  const [y, m] = todayISO().split("-").map(Number);
-  const lastDay = new Date(y, m, 0).getDate();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return { from: `${y}-${pad(m)}-01`, to: `${y}-${pad(m)}-${pad(lastDay)}` };
-}
-
 export default async function Home() {
   const today = todayISO();
-  const { from, to } = monthRange();
 
-  const [employees, todayAttendance, monthAttendance] = await Promise.all([
+  const [employees, todayAttendance] = await Promise.all([
     listEmployees(),
     listAttendance({ dateFrom: today, dateTo: today }),
-    listAttendance({ dateFrom: from, dateTo: to }),
   ]);
 
   const activos = employees.filter((e) => e.estado === "Activo").length;
   const fichajesHoy = todayAttendance.length;
   const tardeHoy = todayAttendance.filter((a) => a.llegadaTarde).length;
-  const horasExtraMes = monthAttendance.reduce((sum, a) => sum + (a.horasExtra ?? 0), 0);
 
   const stats = [
     { label: "Empleados activos", value: activos, href: "/empleados" },
     { label: "Fichajes de hoy", value: fichajesHoy, href: "/asistencia" },
     { label: "Llegadas tarde hoy", value: tardeHoy, href: "/asistencia" },
-    { label: "Horas extra (mes actual)", value: horasExtraMes.toFixed(1), href: "/reportes" },
   ];
 
   return (
@@ -41,7 +30,7 @@ export default async function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
         {stats.map((s) => (
           <Link
             key={s.label}

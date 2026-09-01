@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getMonthRange, getWeekRange } from "@/lib/calendar";
-import { listAttendance, listEmployees } from "@/lib/notion";
+import { formatRangeLabel, getMonthRange, getWeekRange } from "@/lib/calendar";
+import { listAttendance, listEmployees, listShiftAssignments } from "@/lib/notion";
 import { getQuincenaRange, nextQuincenaRef, prevQuincenaRef } from "@/lib/quincena";
 
 export const dynamic = "force-dynamic";
@@ -11,21 +11,47 @@ interface Range {
   from: string;
   to: string;
   label: string;
+  sublabel?: string;
   prevRef: string;
   nextRef: string;
 }
 
+const TIPO_INFO: Record<Tipo, { titulo: string; explicacion: string }> = {
+  semana: {
+    titulo: "Horas por semana",
+    explicacion:
+      "Total de horas trabajadas y horas extra de cada empleado en la semana seleccionada.",
+  },
+  quincena: {
+    titulo: "Horas por quincena",
+    explicacion:
+      "Total de horas trabajadas y horas extra de cada empleado en la quincena seleccionada — pensado para el momento de liquidar sueldos.",
+  },
+  mes: {
+    titulo: "Horas por mes",
+    explicacion:
+      "Total de horas trabajadas y horas extra de cada empleado en el mes seleccionado — un cierre mensual completo.",
+  },
+};
+
 function getRange(tipo: Tipo, ref?: string): Range {
   if (tipo === "mes") {
     const r = getMonthRange(ref);
-    return { from: r.from, to: r.to, label: r.label, prevRef: r.prevRef, nextRef: r.nextRef };
+    return { from: r.from, to: r.to, label: formatRangeLabel(r.from, r.to), prevRef: r.prevRef, nextRef: r.nextRef };
   }
   if (tipo === "semana") {
     const r = getWeekRange(ref);
     return { from: r.from, to: r.to, label: r.label, prevRef: r.prevRef, nextRef: r.nextRef };
   }
   const r = getQuincenaRange(ref);
-  return { from: r.from, to: r.to, label: r.label, prevRef: prevQuincenaRef(r), nextRef: nextQuincenaRef(r) };
+  return {
+    from: r.from,
+    to: r.to,
+    label: formatRangeLabel(r.from, r.to),
+    sublabel: `${r.num}.ª quincena`,
+    prevRef: prevQuincenaRef(r),
+    nextRef: nextQuincenaRef(r),
+  };
 }
 
 export default async function QuincenaPage({
@@ -36,6 +62,7 @@ export default async function QuincenaPage({
   const sp = await searchParams;
   const tipo: Tipo = sp.tipo === "mes" || sp.tipo === "semana" ? sp.tipo : "quincena";
   const range = getRange(tipo, sp.ref);
+  const info = TIPO_INFO[tipo];
 
   const [employees, records] = await Promise.all([
     listEmployees(),
@@ -62,12 +89,27 @@ export default async function QuincenaPage({
     0
   );
 
+  const rotativoEntries = await Promise.all(
+    activos.map(async (e) => {
+      const assignments = await listShiftAssignments(e.id);
+      const overlaps = assignments.some(
+        (a) => a.fechaInicio <= range.to && (a.fechaFin === null || a.fechaFin >= range.from)
+      );
+      return [e.id, overlaps] as const;
+    })
+  );
+  const rotativoByEmployee = new Map(rotativoEntries);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Horas por período</h1>
-          <p className="mt-1 text-slate-500">{range.label}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{info.titulo}</h1>
+          <p className="mt-1 text-sm text-slate-500">{info.explicacion}</p>
+          <p className="mt-2 flex items-center gap-2 text-slate-700">
+            <span className="font-medium">{range.label}</span>
+            {range.sublabel && <span className="badge-gray">{range.sublabel}</span>}
+          </p>
         </div>
         <form method="GET" className="flex items-center gap-2">
           <select name="tipo" defaultValue={tipo} className="input w-auto">
@@ -98,6 +140,7 @@ export default async function QuincenaPage({
           <thead>
             <tr>
               <th>Empleado</th>
+              <th>Horario habitual</th>
               <th>Fichajes</th>
               <th>Horas trabajadas</th>
               <th>Horas extra</th>
@@ -106,7 +149,7 @@ export default async function QuincenaPage({
           <tbody>
             {activos.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-8 text-center text-slate-400">
+                <td colSpan={5} className="py-8 text-center text-slate-400">
                   No hay empleados activos.
                 </td>
               </tr>
@@ -116,6 +159,15 @@ export default async function QuincenaPage({
               return (
                 <tr key={e.id}>
                   <td className="font-medium">{e.nombre}</td>
+                  <td className="font-mono text-xs text-slate-500 whitespace-nowrap">
+                    {rotativoByEmployee.get(e.id) ? (
+                      <span className="badge bg-indigo-100 text-indigo-700">Rotativo</span>
+                    ) : (
+                      <>
+                        {e.horarioEntrada || "—"} a {e.horarioSalida || "—"}
+                      </>
+                    )}
+                  </td>
                   <td className="font-mono tabular-nums">{row.fichajes}</td>
                   <td className="font-mono tabular-nums">{row.horasTrabajadas.toFixed(2)}</td>
                   <td className="font-mono tabular-nums">{row.horasExtra.toFixed(2)}</td>
@@ -127,6 +179,7 @@ export default async function QuincenaPage({
             <tfoot>
               <tr>
                 <td className="font-semibold">Total</td>
+                <td></td>
                 <td></td>
                 <td className="font-semibold font-mono tabular-nums">{totalGeneral.toFixed(2)}</td>
                 <td></td>
