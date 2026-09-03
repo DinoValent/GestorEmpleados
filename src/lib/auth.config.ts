@@ -1,6 +1,25 @@
 import type { NextAuthConfig } from "next-auth";
 import type { Rol } from "./types";
 
+// Primer segmento de cada página real de la app. Cualquier URL que no matchee
+// ninguno de estos (y no sea /api/*) se considera desconocida.
+const KNOWN_ROUTES = new Set([
+  "/",
+  "/login",
+  "/planes",
+  "/perfil",
+  "/mi-fichaje",
+  "/empleados",
+  "/asistencia",
+  "/resumen-pagos",
+  "/calendario",
+  "/ausencias",
+  "/turnos",
+  "/reportes",
+  "/usuarios",
+  "/feriados",
+]);
+
 export const authConfig: NextAuthConfig = {
   pages: { signIn: "/login" },
   session: { strategy: "jwt" },
@@ -9,7 +28,12 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request }) {
       const { nextUrl } = request;
-      const isLoggedIn = !!auth?.user;
+      // Una sesión vieja (de antes de multi-empresa) puede traer un token sin
+      // empresaId. Tratarla como "no logueada" evita que quede en un estado
+      // roto a medias — el cliente cree que hay sesión, pero el servidor no
+      // tiene con qué empresa trabajar. Así, cualquier ruta protegida la manda
+      // directo a /login para reautenticarse y obtener un token nuevo.
+      const isLoggedIn = !!auth?.user?.empresaId;
       const rol = auth?.user?.rol;
       const path = nextUrl.pathname;
 
@@ -21,6 +45,15 @@ export const authConfig: NextAuthConfig = {
         const secret = process.env.CRON_SECRET;
         if (secret && request.headers.get("authorization") === `Bearer ${secret}`) {
           return true;
+        }
+      }
+
+      // Cualquier URL que no sea una página conocida ni una ruta de API se manda
+      // al inicio, sin importar si hay sesión o no.
+      if (!path.startsWith("/api/")) {
+        const topSegment = "/" + (path.split("/")[1] ?? "");
+        if (!KNOWN_ROUTES.has(topSegment)) {
+          return Response.redirect(new URL("/", nextUrl));
         }
       }
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SettingsMenu from "./SettingsMenu";
 
 const NAV_LINKS = [
@@ -28,8 +28,19 @@ export default function NavBar() {
     setOpen(false);
   }
 
+  // Una sesión vieja puede tener email/rol pero no empresaId (token de antes de
+  // multi-empresa). El cliente la ve "autenticada" aunque el servidor la trate
+  // como inválida — eso deja la navbar mostrando links que no funcionan. Acá la
+  // detectamos y forzamos un logout automático para que se pueda reloguear.
+  const staleSession = status === "authenticated" && !session?.user?.empresaId;
+
+  useEffect(() => {
+    if (staleSession) signOut({ callbackUrl: "/login" });
+  }, [staleSession]);
+
   if (pathname === "/login") return null;
 
+  const authenticated = status === "authenticated" && !staleSession;
   const isAdmin = session?.user?.rol === "Admin";
 
   return (
@@ -39,7 +50,7 @@ export default function NavBar() {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
         <Link
-          href={status !== "authenticated" ? "/" : isAdmin ? "/" : "/mi-fichaje"}
+          href={!authenticated ? "/" : isAdmin ? "/" : "/mi-fichaje"}
           className="flex items-center gap-2 text-lg font-semibold tracking-tight transition-opacity hover:opacity-80"
           style={{ color: "var(--foreground)" }}
         >
@@ -49,13 +60,13 @@ export default function NavBar() {
           Puntual
         </Link>
 
-        {status === "unauthenticated" && (
+        {!authenticated && (status === "unauthenticated" || staleSession) && (
           <Link href="/login" className="btn-secondary">
             Iniciar sesión
           </Link>
         )}
 
-        {status === "authenticated" && (
+        {authenticated && (
           <>
             {/* Desktop */}
             <div className="hidden items-center gap-3 lg:flex">
@@ -113,7 +124,7 @@ export default function NavBar() {
       </div>
 
       {/* Mobile panel */}
-      {status === "authenticated" && open && (
+      {authenticated && open && (
         <div
           className="animate-page border-t px-4 py-3 lg:hidden"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
