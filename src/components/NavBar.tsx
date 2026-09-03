@@ -10,7 +10,7 @@ const NAV_LINKS = [
   { href: "/", label: "Inicio" },
   { href: "/empleados", label: "Empleados" },
   { href: "/asistencia", label: "Asistencia" },
-  { href: "/quincena", label: "Quincena" },
+  { href: "/resumen-pagos", label: "Resumen/Pagos" },
   { href: "/calendario", label: "Calendario" },
   { href: "/ausencias", label: "Ausencias" },
   { href: "/turnos", label: "Turnos" },
@@ -39,7 +39,7 @@ export default function NavBar() {
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
         <Link
-          href={isAdmin ? "/" : "/mi-fichaje"}
+          href={status !== "authenticated" ? "/" : isAdmin ? "/" : "/mi-fichaje"}
           className="flex items-center gap-2 text-lg font-semibold tracking-tight transition-opacity hover:opacity-80"
           style={{ color: "var(--foreground)" }}
         >
@@ -48,6 +48,12 @@ export default function NavBar() {
           </span>
           Puntual
         </Link>
+
+        {status === "unauthenticated" && (
+          <Link href="/login" className="btn-secondary">
+            Iniciar sesión
+          </Link>
+        )}
 
         {status === "authenticated" && (
           <>

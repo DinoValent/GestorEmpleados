@@ -19,8 +19,7 @@ export interface Employee {
   email: string;
   telefono: string;
   fechaIngreso: string | null;
-  horarioEntrada: string;
-  horarioSalida: string;
+  shiftId: string | null;
   estado: Estado;
   salarioBase: number | null;
 }
@@ -101,6 +100,9 @@ export interface ShiftTemplate {
 
 export type ShiftTemplateInput = Omit<ShiftTemplate, "id">;
 
+export const DIAS_SEMANA = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"] as const;
+export type DiaSemana = (typeof DIAS_SEMANA)[number];
+
 export interface ShiftAssignment {
   id: string;
   empresaId: string;
@@ -108,6 +110,10 @@ export interface ShiftAssignment {
   shiftId: string;
   fechaInicio: string;
   fechaFin: string | null;
+  /** Días de la semana en que rige (vacío = todos los días del rango). */
+  diasSemana: DiaSemana[];
+  /** true = es el horario fijo del empleado (no cuenta como rotativo); false = cobertura temporal/rotativa. */
+  esFijo: boolean;
 }
 
 export type ShiftAssignmentInput = Omit<ShiftAssignment, "id">;

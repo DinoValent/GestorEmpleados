@@ -1,4 +1,5 @@
 import SendSummaryButton from "@/components/SendSummaryButton";
+import TutorialHint from "@/components/TutorialHint";
 import WeeklySummaryPanel from "@/components/WeeklySummaryPanel";
 import StackedHoursChart, { type HoursBar } from "@/components/charts/StackedHoursChart";
 import { dailyHoursChart } from "@/lib/chartData";
@@ -131,7 +132,14 @@ export default async function ReportesPage({
     <div className="space-y-8">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reportes</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            Reportes
+            <TutorialHint
+              title="Reportes"
+              short="Horas extra, llegadas tarde y costo estimado."
+              long="Filtrá por fecha y por empleado para ver horas trabajadas, horas extra y llegadas tarde del período. El costo estimado es una aproximación (sueldo base dividido las horas base, más las horas extra con su multiplicador) y en los feriados todas las horas se pagan al multiplicador que definas — no reemplaza el cálculo real de nómina. Podés exportar todo a CSV o mandarle el resumen por mail a un empleado puntual."
+            />
+          </h1>
           <p className="mt-1 text-slate-500">
             Horas extra y llegadas tarde por período y empleado.
           </p>

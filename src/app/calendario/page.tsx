@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HolidaySettings from "@/components/HolidaySettings";
+import TutorialHint from "@/components/TutorialHint";
 import MonthGrid from "@/components/calendar/MonthGrid";
 import TimeGrid from "@/components/calendar/TimeGrid";
 import { getDayRange, getMonthRange, getWeekRange } from "@/lib/calendar";
@@ -155,7 +156,14 @@ function Header({
   return (
     <div className="space-y-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Calendario de asistencia</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          Calendario de asistencia
+          <TutorialHint
+            title="Calendario de asistencia"
+            short="Los fichajes del equipo, día, semana o mes."
+            long="Cambiá entre vista de día, semana o mes con los botones de arriba. Los colores indican el estado: verde es a tiempo, rojo es llegada tarde, e índigo significa que la jornada sigue en curso. Los feriados se muestran en amarillo y se importan solos desde 'Feriados y días no laborables'. En la vista de mes hacé clic en cualquier día para ver el detalle."
+          />
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
           {count} fichaje{count === 1 ? "" : "s"} en este período
         </p>

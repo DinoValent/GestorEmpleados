@@ -33,6 +33,19 @@ export const authConfig: NextAuthConfig = {
         return true;
       }
 
+      // "/" es la landing pública para quien no inició sesión; los ya logueados
+      // ven su panel normal (Admin) o son mandados a su propia pantalla (Empleado).
+      if (path === "/") {
+        if (!isLoggedIn) return true;
+        if (rol !== "Admin") {
+          return Response.redirect(new URL("/mi-fichaje", nextUrl));
+        }
+        return true;
+      }
+
+      // "/planes" es pública: sirve para mostrarle precios a alguien antes de loguearse.
+      if (path === "/planes") return true;
+
       if (!isLoggedIn) return false;
 
       if (path === "/mi-fichaje" || path.startsWith("/api/mi-fichaje")) {

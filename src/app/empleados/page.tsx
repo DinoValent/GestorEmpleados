@@ -1,18 +1,30 @@
 import Link from "next/link";
-import { listEmployees } from "@/lib/notion";
+import TutorialHint from "@/components/TutorialHint";
+import { listEmployees, listShiftTemplates } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 
 export default async function EmpleadosPage() {
   const empresaId = (await getEmpresaId())!;
-  const employees = await listEmployees(empresaId);
+  const [employees, shifts] = await Promise.all([
+    listEmployees(empresaId),
+    listShiftTemplates(empresaId),
+  ]);
+  const shiftById = new Map(shifts.map((s) => [s.id, s]));
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Empleados</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            Empleados
+            <TutorialHint
+              title="Empleados"
+              short="La ficha técnica de cada persona del equipo."
+              long="Acá está el legajo de cada empleado: datos personales, puesto, área, horario habitual y salario base (usado para el costo estimado en Reportes). Hacé clic en un nombre para editarlo. Para dar de baja a alguien, no hace falta borrarlo: cambiá su Estado a Inactivo desde su ficha y deja de contar en los totales, pero conserva todo su historial de fichajes."
+            />
+          </h1>
           <p className="mt-1 text-slate-500">Ficha técnica de cada empleado.</p>
         </div>
         <Link href="/empleados/nuevo" className="btn-primary">
@@ -28,7 +40,7 @@ export default async function EmpleadosPage() {
               <th>Legajo</th>
               <th>Puesto</th>
               <th>Área</th>
-              <th>Horario</th>
+              <th>Turno</th>
               <th>Estado</th>
             </tr>
           </thead>
@@ -40,7 +52,9 @@ export default async function EmpleadosPage() {
                 </td>
               </tr>
             )}
-            {employees.map((e) => (
+            {employees.map((e) => {
+              const shift = e.shiftId ? shiftById.get(e.shiftId) : undefined;
+              return (
               <tr key={e.id} className="hover:bg-slate-50">
                 <td>
                   <Link href={`/empleados/${e.id}`} className="font-medium hover:underline">
@@ -51,7 +65,7 @@ export default async function EmpleadosPage() {
                 <td>{e.puesto || "—"}</td>
                 <td>{e.area || "—"}</td>
                 <td>
-                  {e.horarioEntrada || "—"} a {e.horarioSalida || "—"}
+                  {shift ? `${shift.nombre} (${shift.horaEntrada}–${shift.horaSalida})` : "—"}
                 </td>
                 <td>
                   <span className={e.estado === "Activo" ? "badge-green" : "badge-gray"}>
@@ -59,7 +73,8 @@ export default async function EmpleadosPage() {
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

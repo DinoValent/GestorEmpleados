@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { createEmployee, listEmployees } from "@/lib/notion";
+import { createEmployee, getShiftTemplate, listEmployees } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
 import type { EmployeeInput } from "@/lib/types";
 
@@ -23,6 +23,9 @@ export async function POST(req: NextRequest) {
     const data = (await req.json()) as Omit<EmployeeInput, "empresaId">;
     if (!data.nombre?.trim()) {
       return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
+    }
+    if (data.shiftId) {
+      await getShiftTemplate(data.shiftId, empresaId); // valida que el turno sea de esta empresa
     }
     const employee = await createEmployee({ ...data, empresaId });
     revalidatePath("/empleados");

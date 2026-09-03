@@ -1,4 +1,7 @@
+import AssignmentsTable from "@/components/AssignmentsTable";
+import ShiftTemplatesTable from "@/components/ShiftTemplatesTable";
 import TurnosPanel from "@/components/TurnosPanel";
+import TutorialHint from "@/components/TutorialHint";
 import { todayISO } from "@/lib/calendar";
 import { listEmployees, listShiftAssignments, listShiftTemplates } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
@@ -16,14 +19,21 @@ export default async function TurnosPage() {
     .filter((e) => e.estado === "Activo")
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  const employeeById = new Map(employees.map((e) => [e.id, e]));
-  const shiftById = new Map(shifts.map((s) => [s.id, s]));
+  const employeeNames = Object.fromEntries(employees.map((e) => [e.id, e.nombre]));
+  const shiftNames = Object.fromEntries(shifts.map((s) => [s.id, s.nombre]));
   const today = todayISO();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Turnos rotativos</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          Turnos rotativos
+          <TutorialHint
+            title="Turnos rotativos"
+            short="Horarios distintos según el día o el período."
+            long="Primero creá los turnos que usa tu negocio (por ejemplo Mañana, Tarde, Noche) con su hora de entrada y salida. Después asigná un turno a un empleado para un rango de fechas: mientras dure ese rango, el sistema va a usar el horario del turno en vez del horario fijo de su ficha para calcular llegadas tarde y horas extra. Podés editar o eliminar un turno, y eliminar una asignación, con los botones de cada tabla."
+          />
+        </h1>
         <p className="mt-1 text-slate-500">
           Creá los turnos que usa el negocio y asigná a cada empleado el turno que le
           corresponde en cada período. Si un empleado no tiene ninguna asignación vigente,
@@ -33,78 +43,16 @@ export default async function TurnosPage() {
 
       <TurnosPanel employees={activos} shifts={shifts} />
 
-      <div className="card overflow-x-auto p-0">
-        <table className="table-base">
-          <thead>
-            <tr>
-              <th>Turno</th>
-              <th>Entrada</th>
-              <th>Salida</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shifts.length === 0 && (
-              <tr>
-                <td colSpan={3} className="py-8 text-center text-slate-400">
-                  Todavía no hay turnos cargados.
-                </td>
-              </tr>
-            )}
-            {shifts.map((s) => (
-              <tr key={s.id}>
-                <td className="font-medium">{s.nombre}</td>
-                <td className="font-mono tabular-nums">{s.horaEntrada}</td>
-                <td className="font-mono tabular-nums">{s.horaSalida}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ShiftTemplatesTable shifts={shifts} />
 
       <div>
         <h2 className="mb-2 text-lg font-semibold text-slate-800">Asignaciones</h2>
-        <div className="card overflow-x-auto p-0">
-          <table className="table-base">
-            <thead>
-              <tr>
-                <th>Empleado</th>
-                <th>Turno</th>
-                <th>Desde</th>
-                <th>Hasta</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assignments.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
-                    Todavía no hay asignaciones cargadas.
-                  </td>
-                </tr>
-              )}
-              {assignments.map((a) => {
-                const vigente = today >= a.fechaInicio && (a.fechaFin === null || today <= a.fechaFin);
-                return (
-                  <tr key={a.id}>
-                    <td className="font-medium">{employeeById.get(a.employeeId)?.nombre ?? "—"}</td>
-                    <td>{shiftById.get(a.shiftId)?.nombre ?? "—"}</td>
-                    <td className="font-mono tabular-nums">{a.fechaInicio}</td>
-                    <td className="font-mono tabular-nums">{a.fechaFin ?? "Indefinido"}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          vigente ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
-                        }`}
-                      >
-                        {vigente ? "Vigente" : "No vigente"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <AssignmentsTable
+          assignments={assignments}
+          employeeNames={employeeNames}
+          shiftNames={shiftNames}
+          today={today}
+        />
       </div>
     </div>
   );

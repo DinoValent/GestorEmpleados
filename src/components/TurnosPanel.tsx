@@ -2,7 +2,39 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Employee, ShiftAssignmentInput, ShiftTemplate, ShiftTemplateInput } from "@/lib/types";
+import {
+  DIAS_SEMANA,
+  type DiaSemana,
+  type Employee,
+  type ShiftAssignmentInput,
+  type ShiftTemplate,
+  type ShiftTemplateInput,
+} from "@/lib/types";
+
+const DIA_LABEL: Record<DiaSemana, string> = {
+  LUN: "L",
+  MAR: "M",
+  MIE: "X",
+  JUE: "J",
+  VIE: "V",
+  SAB: "S",
+  DOM: "D",
+};
+
+const DIA_NOMBRE: Record<DiaSemana, string> = {
+  LUN: "Lunes",
+  MAR: "Martes",
+  MIE: "Miércoles",
+  JUE: "Jueves",
+  VIE: "Viernes",
+  SAB: "Sábado",
+  DOM: "Domingo",
+};
+
+function localTodayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export default function TurnosPanel({
   employees,
@@ -21,10 +53,18 @@ export default function TurnosPanel({
 
   const [employeeId, setEmployeeId] = useState(employees[0]?.id ?? "");
   const [shiftId, setShiftId] = useState(shifts[0]?.id ?? "");
+  const [turnoFijo, setTurnoFijo] = useState(true);
+  const [diasSemana, setDiasSemana] = useState<DiaSemana[]>([...DIAS_SEMANA]);
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [savingAssignment, setSavingAssignment] = useState(false);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
+
+  function toggleDia(dia: DiaSemana) {
+    setDiasSemana((prev) =>
+      prev.includes(dia) ? prev.filter((d) => d !== dia) : [...prev, dia]
+    );
+  }
 
   async function crearTurno(e: React.FormEvent) {
     e.preventDefault();
@@ -58,12 +98,29 @@ export default function TurnosPanel({
       if (!employeeId || !shiftId) {
         throw new Error("Elegí un empleado y un turno");
       }
-      const body: Omit<ShiftAssignmentInput, "empresaId"> = {
-        employeeId,
-        shiftId,
-        fechaInicio,
-        fechaFin: fechaFin || null,
-      };
+      if (diasSemana.length === 0) {
+        throw new Error("Elegí al menos un día de la semana");
+      }
+      if (!turnoFijo && !fechaInicio) {
+        throw new Error("Elegí una fecha de inicio");
+      }
+      const body: Omit<ShiftAssignmentInput, "empresaId"> = turnoFijo
+        ? {
+            employeeId,
+            shiftId,
+            fechaInicio: localTodayISO(),
+            fechaFin: null,
+            diasSemana,
+            esFijo: true,
+          }
+        : {
+            employeeId,
+            shiftId,
+            fechaInicio,
+            fechaFin: fechaFin || null,
+            diasSemana,
+            esFijo: false,
+          };
       const res = await fetch("/api/asignaciones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,6 +132,7 @@ export default function TurnosPanel({
       }
       setFechaInicio("");
       setFechaFin("");
+      setDiasSemana([...DIAS_SEMANA]);
       router.refresh();
     } catch (err) {
       setAssignmentError(err instanceof Error ? err.message : "Error al asignar el turno");
@@ -130,8 +188,9 @@ export default function TurnosPanel({
       <form onSubmit={crearAsignacion} className="card space-y-3">
         <h2 className="font-semibold">Asignar turno a un empleado</h2>
         <p className="text-sm text-slate-500">
-          Mientras dure el rango de fechas, ese empleado va a usar el horario de este turno en
-          vez de su horario fijo. Dejá la fecha de fin vacía si es indefinido.
+          {turnoFijo
+            ? "Se repite todas las semanas en los días que marques, sin fecha de fin."
+            : "Rige solo durante el rango de fechas que elijas, en los días que marques."}
         </p>
         {assignmentError && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{assignmentError}</p>
@@ -170,27 +229,60 @@ export default function TurnosPanel({
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Fecha inicio *</label>
-                <input
-                  type="date"
-                  className="input"
-                  required
-                  value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="label">Fecha fin</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={fechaFin}
-                  onChange={(e) => setFechaFin(e.target.value)}
-                />
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                checked={turnoFijo}
+                onChange={(e) => setTurnoFijo(e.target.checked)}
+              />
+              Turno fijo (se repite todas las semanas)
+            </label>
+
+            <div>
+              <label className="label">Días *</label>
+              <div className="flex flex-wrap gap-1.5">
+                {DIAS_SEMANA.map((dia) => (
+                  <button
+                    key={dia}
+                    type="button"
+                    title={DIA_NOMBRE[dia]}
+                    onClick={() => toggleDia(dia)}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold transition-colors ${
+                      diasSemana.includes(dia)
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                    }`}
+                  >
+                    {DIA_LABEL[dia]}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {!turnoFijo && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Fecha inicio *</label>
+                  <input
+                    type="date"
+                    className="input"
+                    required
+                    value={fechaInicio}
+                    onChange={(e) => setFechaInicio(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Fecha fin</label>
+                  <input
+                    type="date"
+                    className="input"
+                    value={fechaFin}
+                    onChange={(e) => setFechaFin(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
             <button type="submit" className="btn-secondary" disabled={savingAssignment}>
               {savingAssignment ? "Guardando..." : "Asignar"}
             </button>

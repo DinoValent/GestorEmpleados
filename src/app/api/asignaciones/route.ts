@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Empleado o turno inválido" }, { status: 400 });
     }
     const assignment = await createShiftAssignment(
-      { ...data, empresaId },
+      { ...data, empresaId, diasSemana: data.diasSemana ?? [], esFijo: data.esFijo ?? false },
       employee.nombre,
       shift.nombre
     );
     revalidatePath("/turnos");
     revalidatePath("/asistencia");
-    revalidatePath("/quincena");
+    revalidatePath("/resumen-pagos");
     return NextResponse.json(assignment, { status: 201 });
   } catch (err) {
     console.error(err);

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AttendanceBoard from "@/components/AttendanceBoard";
+import TutorialHint from "@/components/TutorialHint";
 import { formatRangeLabel } from "@/lib/calendar";
 import { listAttendance, listEmployees, resolveEmployeeSchedule, todayISO } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
@@ -37,7 +38,14 @@ export default async function AsistenciaPage({
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Asistencia</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            Asistencia
+            <TutorialHint
+              title="Asistencia"
+              short="Fichá entradas y salidas del equipo."
+              long="Desde acá el administrador registra manualmente la entrada y salida de cualquier empleado (sin necesidad de ubicación, a diferencia del autofichaje del empleado). El sistema calcula solo si llegó tarde y cuántas horas extra hizo, comparando contra su horario habitual o el turno rotativo que tenga asignado ese día. También podés corregir horarios cargados y dejar observaciones por fichaje."
+            />
+          </h1>
           <p className="mt-1 text-slate-500">
             Registrá la entrada y salida de cada empleado. Las llegadas tarde y las
             horas extra se calculan automáticamente.

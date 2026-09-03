@@ -23,7 +23,12 @@ import type {
 } from "./types";
 import { nowHHMM, todayISO } from "./timezone";
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
+// Next.js parchea el fetch global y por defecto cachea sus respuestas — sin esto,
+// las consultas a Notion pueden devolver datos viejos entre requests.
+const notion = new Client({
+  auth: process.env.NOTION_TOKEN,
+  fetch: (url, init) => fetch(url, { ...init, cache: "no-store" } as RequestInit),
+});
 
 const EMPLOYEES_DB = process.env.NOTION_EMPLOYEES_DB_ID as string;
 const ATTENDANCE_DB = process.env.NOTION_ATTENDANCE_DB_ID as string;
@@ -59,6 +64,12 @@ function selectVal(page: PageObjectResponse, prop: string): string {
   const p = page.properties[prop];
   if (p?.type === "select") return p.select?.name ?? "";
   return "";
+}
+
+function multiSelectVal(page: PageObjectResponse, prop: string): string[] {
+  const p = page.properties[prop];
+  if (p?.type === "multi_select") return p.multi_select.map((o) => o.name);
+  return [];
 }
 
 function emailVal(page: PageObjectResponse, prop: string): string {
@@ -116,8 +127,7 @@ function mapEmployee(page: PageObjectResponse): Employee {
     email: emailVal(page, "Email"),
     telefono: phoneVal(page, "Telefono"),
     fechaIngreso: dateVal(page, "Fecha de ingreso"),
-    horarioEntrada: text(page, "Horario entrada habitual"),
-    horarioSalida: text(page, "Horario salida habitual"),
+    shiftId: relationFirstId(page, "Turno") || null,
     estado: (selectVal(page, "Estado") || "Activo") as Employee["estado"],
     salarioBase: numberVal(page, "Salario base"),
   };
@@ -238,12 +248,7 @@ function employeeProperties(data: EmployeeInput) {
     "Fecha de ingreso": data.fechaIngreso
       ? { date: { start: data.fechaIngreso } }
       : { date: null },
-    "Horario entrada habitual": {
-      rich_text: [{ text: { content: data.horarioEntrada } }],
-    },
-    "Horario salida habitual": {
-      rich_text: [{ text: { content: data.horarioSalida } }],
-    },
+    Turno: data.shiftId ? { relation: [{ id: data.shiftId }] } : { relation: [] },
     Estado: { select: { name: data.estado || "Activo" } },
     "Salario base":
       data.salarioBase === null || data.salarioBase === undefined
@@ -843,6 +848,36 @@ export async function createShiftTemplate(
   return mapShiftTemplate(page);
 }
 
+export async function getShiftTemplate(id: string, empresaId: string): Promise<ShiftTemplate> {
+  const page = (await notion.pages.retrieve({ page_id: id })) as PageObjectResponse;
+  const shift = mapShiftTemplate(page);
+  if (shift.empresaId !== empresaId) throw new Error("No autorizado");
+  return shift;
+}
+
+export async function updateShiftTemplate(
+  id: string,
+  empresaId: string,
+  data: Omit<ShiftTemplateInput, "empresaId">,
+): Promise<ShiftTemplate> {
+  await getShiftTemplate(id, empresaId); // lanza si el turno no es de esta empresa
+  const page = (await notion.pages.update({
+    page_id: id,
+    properties: {
+      Nombre: { title: [{ text: { content: data.nombre } }] },
+      "Hora entrada": { rich_text: [{ text: { content: data.horaEntrada } }] },
+      "Hora salida": { rich_text: [{ text: { content: data.horaSalida } }] },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+  })) as PageObjectResponse;
+  return mapShiftTemplate(page);
+}
+
+export async function deleteShiftTemplate(id: string, empresaId: string): Promise<void> {
+  await getShiftTemplate(id, empresaId); // lanza si el turno no es de esta empresa
+  await notion.pages.update({ page_id: id, in_trash: true });
+}
+
 // ---------- shift assignments (asignaciones de turno) ----------
 
 function mapShiftAssignment(page: PageObjectResponse): ShiftAssignment {
@@ -853,6 +888,8 @@ function mapShiftAssignment(page: PageObjectResponse): ShiftAssignment {
     shiftId: relationFirstId(page, "Turno"),
     fechaInicio: dateVal(page, "Fecha inicio") ?? "",
     fechaFin: dateVal(page, "Fecha fin"),
+    diasSemana: multiSelectVal(page, "Dias semana") as ShiftAssignment["diasSemana"],
+    esFijo: checkboxVal(page, "Es fijo"),
   };
 }
 
@@ -906,16 +943,34 @@ export async function createShiftAssignment(
       "Fecha fin": data.fechaFin
         ? { date: { start: data.fechaFin } }
         : { date: null },
+      "Dias semana": { multi_select: data.diasSemana.map((d) => ({ name: d })) },
+      "Es fijo": { checkbox: data.esFijo },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
   })) as PageObjectResponse;
   return mapShiftAssignment(page);
 }
 
+export async function deleteShiftAssignment(id: string, empresaId: string): Promise<void> {
+  const page = (await notion.pages.retrieve({ page_id: id })) as PageObjectResponse;
+  const assignment = mapShiftAssignment(page);
+  if (assignment.empresaId !== empresaId) throw new Error("No autorizado");
+  await notion.pages.update({ page_id: id, in_trash: true });
+}
+
+const DIAS_SEMANA_ORDEN = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"] as const;
+
+/** Código de día (LUN..DOM) para una fecha ISO, en hora local (sin corrimiento UTC). */
+function diaSemanaOf(dateISO: string): (typeof DIAS_SEMANA_ORDEN)[number] {
+  const day = new Date(`${dateISO}T00:00:00`).getDay();
+  return DIAS_SEMANA_ORDEN[(day + 6) % 7];
+}
+
 /**
  * Resuelve qué horario le toca a un empleado en una fecha puntual: si tiene una
- * asignación de turno vigente ese día, usa ese turno; si no, cae al horario fijo
- * de su ficha (para clientes que no usan turnos rotativos, nada cambia).
+ * asignación de turno rotativo vigente ese día (y que incluya ese día de la semana),
+ * usa ese turno; si no, cae al turno fijo asignado en su ficha; si tampoco tiene uno,
+ * queda sin horario de referencia.
  */
 export async function resolveEmployeeSchedule(
   empresaId: string,
@@ -923,31 +978,31 @@ export async function resolveEmployeeSchedule(
   date: string,
   employee: Employee,
 ): Promise<{ horaEntrada: string; horaSalida: string; rotativo: boolean }> {
-  const assignments = await listShiftAssignments(empresaId, employeeId);
+  const [assignments, shifts] = await Promise.all([
+    listShiftAssignments(empresaId, employeeId),
+    listShiftTemplates(empresaId),
+  ]);
+
+  const dia = diaSemanaOf(date);
   const match = assignments.find(
-    (a) => date >= a.fechaInicio && (a.fechaFin === null || date <= a.fechaFin),
+    (a) =>
+      date >= a.fechaInicio &&
+      (a.fechaFin === null || date <= a.fechaFin) &&
+      (a.diasSemana.length === 0 || a.diasSemana.includes(dia)),
   );
-  if (!match) {
-    return {
-      horaEntrada: employee.horarioEntrada,
-      horaSalida: employee.horarioSalida,
-      rotativo: false,
-    };
+  if (match) {
+    const shift = shifts.find((s) => s.id === match.shiftId);
+    if (shift) {
+      return { horaEntrada: shift.horaEntrada, horaSalida: shift.horaSalida, rotativo: !match.esFijo };
+    }
   }
-  const shifts = await listShiftTemplates(empresaId);
-  const shift = shifts.find((s) => s.id === match.shiftId);
-  if (!shift) {
-    return {
-      horaEntrada: employee.horarioEntrada,
-      horaSalida: employee.horarioSalida,
-      rotativo: false,
-    };
+
+  const defaultShift = employee.shiftId ? shifts.find((s) => s.id === employee.shiftId) : undefined;
+  if (defaultShift) {
+    return { horaEntrada: defaultShift.horaEntrada, horaSalida: defaultShift.horaSalida, rotativo: false };
   }
-  return {
-    horaEntrada: shift.horaEntrada,
-    horaSalida: shift.horaSalida,
-    rotativo: true,
-  };
+
+  return { horaEntrada: "", horaSalida: "", rotativo: false };
 }
 
 /** True si el empleado tiene alguna asignación de turno cargada (usa rotativos). */

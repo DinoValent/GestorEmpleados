@@ -1,6 +1,7 @@
 import Link from "next/link";
+import TutorialHint from "@/components/TutorialHint";
 import { formatRangeLabel, getMonthRange, getWeekRange } from "@/lib/calendar";
-import { listAttendance, listEmployees, listShiftAssignments } from "@/lib/notion";
+import { listAttendance, listEmployees, listShiftAssignments, listShiftTemplates } from "@/lib/notion";
 import { getQuincenaRange, nextQuincenaRef, prevQuincenaRef } from "@/lib/quincena";
 import { getEmpresaId } from "@/lib/session";
 
@@ -55,7 +56,7 @@ function getRange(tipo: Tipo, ref?: string): Range {
   };
 }
 
-export default async function QuincenaPage({
+export default async function ResumenPagosPage({
   searchParams,
 }: {
   searchParams: Promise<{ tipo?: string; ref?: string }>;
@@ -66,10 +67,12 @@ export default async function QuincenaPage({
   const range = getRange(tipo, sp.ref);
   const info = TIPO_INFO[tipo];
 
-  const [employees, records] = await Promise.all([
+  const [employees, records, shifts] = await Promise.all([
     listEmployees(empresaId),
     listAttendance(empresaId, { dateFrom: range.from, dateTo: range.to }),
+    listShiftTemplates(empresaId),
   ]);
+  const shiftById = new Map(shifts.map((s) => [s.id, s]));
 
   const activos = employees
     .filter((e) => e.estado === "Activo")
@@ -91,22 +94,35 @@ export default async function QuincenaPage({
     0
   );
 
-  const rotativoEntries = await Promise.all(
+  const scheduleStatusEntries = await Promise.all(
     activos.map(async (e) => {
       const assignments = await listShiftAssignments(empresaId, e.id);
-      const overlaps = assignments.some(
+      const overlapping = assignments.filter(
         (a) => a.fechaInicio <= range.to && (a.fechaFin === null || a.fechaFin >= range.from)
       );
-      return [e.id, overlaps] as const;
+      return [
+        e.id,
+        {
+          rotativo: overlapping.some((a) => !a.esFijo),
+          turnoFijoVariable: overlapping.some((a) => a.esFijo),
+        },
+      ] as const;
     })
   );
-  const rotativoByEmployee = new Map(rotativoEntries);
+  const scheduleStatusByEmployee = new Map(scheduleStatusEntries);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{info.titulo}</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            Resumen de pagos
+            <TutorialHint
+              title="Resumen de pagos"
+              short="Horas totales por empleado, listas para liquidar."
+              long="Elegí si querés ver el resumen por semana, quincena o mes con el selector de arriba, y navegá entre períodos con los botones de anterior/siguiente. Para cada empleado ves cuántas veces fichó, sus horas trabajadas y sus horas extra en ese período — pensado para el momento de calcular sueldos. Si un empleado tiene turno rotativo, en vez del horario fijo vas a ver la etiqueta 'Rotativo'."
+            />
+          </h1>
           <p className="mt-1 text-sm text-slate-500">{info.explicacion}</p>
           <p className="mt-2 flex items-center gap-2 text-slate-700">
             <span className="font-medium">{range.label}</span>
@@ -126,13 +142,13 @@ export default async function QuincenaPage({
       </div>
 
       <div className="flex items-center gap-2">
-        <Link href={`/quincena?tipo=${tipo}&ref=${range.prevRef}`} className="btn-secondary">
+        <Link href={`/resumen-pagos?tipo=${tipo}&ref=${range.prevRef}`} className="btn-secondary">
           ← Anterior
         </Link>
-        <Link href={`/quincena?tipo=${tipo}`} className="btn-secondary">
+        <Link href={`/resumen-pagos?tipo=${tipo}`} className="btn-secondary">
           Actual
         </Link>
-        <Link href={`/quincena?tipo=${tipo}&ref=${range.nextRef}`} className="btn-secondary">
+        <Link href={`/resumen-pagos?tipo=${tipo}&ref=${range.nextRef}`} className="btn-secondary">
           Siguiente →
         </Link>
       </div>
@@ -158,16 +174,22 @@ export default async function QuincenaPage({
             )}
             {activos.map((e) => {
               const row = totals.get(e.id)!;
+              const shift = e.shiftId ? shiftById.get(e.shiftId) : undefined;
+              const status = scheduleStatusByEmployee.get(e.id);
               return (
                 <tr key={e.id}>
                   <td className="font-medium">{e.nombre}</td>
                   <td className="font-mono text-xs text-slate-500 whitespace-nowrap">
-                    {rotativoByEmployee.get(e.id) ? (
+                    {status?.rotativo ? (
                       <span className="badge bg-indigo-100 text-indigo-700">Rotativo</span>
-                    ) : (
+                    ) : status?.turnoFijoVariable ? (
+                      <span className="badge bg-emerald-100 text-emerald-800">Turno fijo</span>
+                    ) : shift ? (
                       <>
-                        {e.horarioEntrada || "—"} a {e.horarioSalida || "—"}
+                        {shift.horaEntrada} a {shift.horaSalida}
                       </>
+                    ) : (
+                      "—"
                     )}
                   </td>
                   <td className="font-mono tabular-nums">{row.fichajes}</td>

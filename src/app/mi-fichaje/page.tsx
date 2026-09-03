@@ -1,4 +1,5 @@
 import CheckInWidget from "@/components/CheckInWidget";
+import TutorialHint from "@/components/TutorialHint";
 import StackedHoursChart from "@/components/charts/StackedHoursChart";
 import HoursRangePicker, { type RangoTipo } from "@/components/HoursRangePicker";
 import { auth } from "@/lib/auth";
@@ -72,7 +73,14 @@ export default async function MiFichajePage({
 
       <div className="mx-auto max-w-2xl space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-slate-800">Mis horas</h2>
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
+            Mis horas
+            <TutorialHint
+              title="Mis horas"
+              short="Tus fichajes y horas trabajadas."
+              long="Arriba fichás tu entrada y salida — necesitamos tu ubicación en ese momento para que el fichaje sea válido, así que asegurate de tener el permiso de ubicación activado. Acá abajo podés ver cuántas horas trabajaste y cuántas fueron extra, elegir semana, mes o un rango de fechas particular, y ver el detalle día por día en el gráfico."
+            />
+          </h2>
           <p className="text-sm text-slate-500">{rangeLabel}</p>
         </div>
 

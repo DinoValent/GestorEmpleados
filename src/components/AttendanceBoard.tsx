@@ -164,8 +164,8 @@ export default function AttendanceBoard({
                 const open = !!openRecord;
 
                 const schedule = schedules[emp.id];
-                const horaEntrada = schedule?.horaEntrada || emp.horarioEntrada;
-                const horaSalida = schedule?.horaSalida || emp.horarioSalida;
+                const horaEntrada = schedule?.horaEntrada ?? "";
+                const horaSalida = schedule?.horaSalida ?? "";
 
                 return (
                   <tr key={emp.id}>

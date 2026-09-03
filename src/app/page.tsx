@@ -1,5 +1,7 @@
 import Link from "next/link";
+import LandingPage from "@/components/LandingPage";
 import TeamHoursCard from "@/components/TeamHoursCard";
+import TutorialHint from "@/components/TutorialHint";
 import { getWeekRange } from "@/lib/calendar";
 import { dailyHoursChart } from "@/lib/chartData";
 import { listAttendance, listEmployees, todayISO } from "@/lib/notion";
@@ -8,7 +10,12 @@ import { getEmpresaId } from "@/lib/session";
 export const revalidate = 30;
 
 export default async function Home() {
-  const empresaId = (await getEmpresaId())!;
+  const empresaId = await getEmpresaId();
+  if (!empresaId) return <LandingPage />;
+  return <Dashboard empresaId={empresaId} />;
+}
+
+async function Dashboard({ empresaId }: { empresaId: string }) {
   const today = todayISO();
   const week = getWeekRange();
 
@@ -33,7 +40,14 @@ export default async function Home() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Panel general</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          Panel general
+          <TutorialHint
+            title="Panel general"
+            short="Un resumen rápido de tu equipo hoy."
+            long="Acá ves de un vistazo cuántos empleados activos tenés, cuántos ficharon hoy y cuántas llegadas tarde hubo. Cada tarjeta es un acceso directo: hacé clic para ir a Empleados o Asistencia. En pantallas grandes también aparece un gráfico con las horas trabajadas por el equipo en la semana, que podés ocultar o mostrar cuando quieras."
+          />
+        </h1>
         <p className="mt-1 text-slate-500">
           Resumen del control de empleados, asistencia y horas.
         </p>

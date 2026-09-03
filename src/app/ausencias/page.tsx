@@ -1,4 +1,5 @@
 import Link from "next/link";
+import TutorialHint from "@/components/TutorialHint";
 import { listAbsences, listEmployees } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
 import type { AbsenceType } from "@/lib/types";
@@ -27,7 +28,14 @@ export default async function AusenciasPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Ausencias</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            Ausencias
+            <TutorialHint
+              title="Ausencias"
+              short="Vacaciones, licencias y faltas de cada empleado."
+              long="Cargá acá las vacaciones, licencias médicas o personales, y faltas (justificadas o no) de un empleado, con su rango de fechas. Estas ausencias se muestran en el Calendario para que sepas por qué alguien no fichó ese día, y quedan como registro histórico del equipo."
+            />
+          </h1>
           <p className="mt-1 text-slate-500">
             Vacaciones, licencias y faltas cargadas por empleado.
           </p>

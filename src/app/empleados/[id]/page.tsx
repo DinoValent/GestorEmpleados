@@ -1,8 +1,8 @@
 import EmployeeForm from "@/components/EmployeeForm";
-import { getEmployee } from "@/lib/notion";
+import { getEmployee, listShiftTemplates } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 
 export default async function EditarEmpleadoPage({
   params,
@@ -11,7 +11,10 @@ export default async function EditarEmpleadoPage({
 }) {
   const empresaId = (await getEmpresaId())!;
   const { id } = await params;
-  const employee = await getEmployee(id, empresaId);
+  const [employee, shifts] = await Promise.all([
+    getEmployee(id, empresaId),
+    listShiftTemplates(empresaId),
+  ]);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -19,7 +22,7 @@ export default async function EditarEmpleadoPage({
         <h1 className="text-2xl font-semibold tracking-tight">{employee.nombre}</h1>
         <p className="mt-1 text-slate-500">Editá la ficha técnica del empleado.</p>
       </div>
-      <EmployeeForm employee={employee} />
+      <EmployeeForm employee={employee} shifts={shifts} />
     </div>
   );
 }

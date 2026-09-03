@@ -1,11 +1,34 @@
 "use client";
 
 import { signOut } from "next-auth/react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useLocalToggle } from "@/lib/useLocalToggle";
 import ThemeToggle from "./ThemeToggle";
+
+function MiniSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-300 ${
+        checked ? "bg-indigo-500" : "bg-slate-200"
+      }`}
+    >
+      <span
+        className={`inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
+}
 
 export default function SettingsMenu({ email }: { email?: string | null }) {
   const [open, setOpen] = useState(false);
+  const [tutorial, setTutorial] = useLocalToggle("puntual-tutorial", true);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,6 +88,40 @@ export default function SettingsMenu({ email }: { email?: string | null }) {
             </p>
           </div>
 
+          <nav className="border-b py-1.5" style={{ borderColor: "var(--border-subtle)" }}>
+            <Link
+              href="/perfil"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-100 dark:hover:bg-white/5"
+              style={{ color: "var(--foreground)" }}
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+              Mi perfil
+            </Link>
+            <Link
+              href="/planes"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-100 dark:hover:bg-white/5"
+              style={{ color: "var(--foreground)" }}
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 8c-1.657 0-3 .672-3 1.5S10.343 11 12 11s3 .672 3 1.5-1.343 1.5-3 1.5m0-6V6m0 1v6m0 0v1m0-7c1.11 0 2.08.402 2.599 1M9.4 13.5c.519.598 1.488 1 2.6 1"
+                />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+              Planes
+            </Link>
+          </nav>
+
           <div
             className="flex items-center justify-between px-4 py-3"
             style={{ borderBottom: "1px solid var(--border-subtle)" }}
@@ -73,6 +130,21 @@ export default function SettingsMenu({ email }: { email?: string | null }) {
               Modo oscuro
             </span>
             <ThemeToggle compact />
+          </div>
+
+          <div
+            className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: "1px solid var(--border-subtle)" }}
+          >
+            <div>
+              <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                Modo tutorial
+              </p>
+              <p className="text-xs" style={{ color: "var(--foreground-muted)" }}>
+                Íconos de ayuda en la app
+              </p>
+            </div>
+            <MiniSwitch checked={tutorial} onChange={setTutorial} />
           </div>
 
           <button
