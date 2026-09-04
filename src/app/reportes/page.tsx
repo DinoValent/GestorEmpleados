@@ -28,6 +28,7 @@ export default async function ReportesPage({
     horasBase?: string;
     multiplicador?: string;
     multiplicadorFeriado?: string;
+    pagoPorHora?: string;
   }>;
 }) {
   const empresaId = (await getEmpresaId())!;
@@ -40,6 +41,7 @@ export default async function ReportesPage({
     multiplicador: Number(sp.multiplicador) || DEFAULT_COST_PARAMS.multiplicador,
     multiplicadorFeriado:
       Number(sp.multiplicadorFeriado) || DEFAULT_COST_PARAMS.multiplicadorFeriado,
+    pagoPorHora: Number(sp.pagoPorHora) || DEFAULT_COST_PARAMS.pagoPorHora,
   };
 
   const [employees, records, holidays] = await Promise.all([
@@ -107,7 +109,7 @@ export default async function ReportesPage({
   );
   const exportUrl = `/api/reportes/export?dateFrom=${dateFrom}&dateTo=${dateTo}${
     employeeId ? `&employeeId=${employeeId}` : ""
-  }&horasBase=${costParams.horasBase}&multiplicador=${costParams.multiplicador}&multiplicadorFeriado=${costParams.multiplicadorFeriado}`;
+  }&horasBase=${costParams.horasBase}&multiplicador=${costParams.multiplicador}&multiplicadorFeriado=${costParams.multiplicadorFeriado}&pagoPorHora=${costParams.pagoPorHora}`;
 
   const llegadasTarde = records
     .filter((r) => r.llegadaTarde)
@@ -137,7 +139,7 @@ export default async function ReportesPage({
             <TutorialHint
               title="Reportes"
               short="Horas extra, llegadas tarde y costo estimado."
-              long="Filtrá por fecha y por empleado para ver horas trabajadas, horas extra y llegadas tarde del período. El costo estimado es una aproximación (sueldo base dividido las horas base, más las horas extra con su multiplicador) y en los feriados todas las horas se pagan al multiplicador que definas — no reemplaza el cálculo real de nómina. Podés exportar todo a CSV o mandarle el resumen por mail a un empleado puntual."
+              long="Filtrá por fecha y por empleado para ver horas trabajadas, horas extra y llegadas tarde del período. Para el costo estimado, cargá un 'Pago por hora' si querés un cálculo rápido e igual para todos, o dejalo vacío para que use el sueldo base de cada empleado dividido las horas base — en los feriados todas las horas se pagan al multiplicador que definas. No reemplaza el cálculo real de nómina. Podés exportar todo a Excel o mandarle el resumen por mail a un empleado puntual."
             />
           </h1>
           <p className="mt-1 text-slate-500">
@@ -172,6 +174,17 @@ export default async function ReportesPage({
           </select>
         </div>
         <div>
+          <label className="label">Pago por hora</label>
+          <input
+            type="number"
+            step="0.01"
+            name="pagoPorHora"
+            defaultValue={costParams.pagoPorHora || ""}
+            placeholder="Ej. 2500"
+            className="input w-32"
+          />
+        </div>
+        <div>
           <label className="label">Hs. base mensuales</label>
           <input
             type="number"
@@ -204,7 +217,7 @@ export default async function ReportesPage({
           Filtrar
         </button>
         <a href={exportUrl} className="btn-secondary">
-          Exportar CSV
+          Exportar Excel
         </a>
       </form>
 
@@ -218,10 +231,23 @@ export default async function ReportesPage({
       <div>
         <h2 className="mb-3 text-lg font-semibold">Horas por empleado</h2>
         <p className="mb-3 text-xs text-slate-400">
-          El costo estimado es una aproximación: sueldo base ÷ {costParams.horasBase} hs
-          + horas extra × {costParams.multiplicador}, y en los feriados todas las horas
-          se pagan × {costParams.multiplicadorFeriado}. No reemplaza el cálculo real de
-          nómina.
+          El costo estimado es una aproximación: horas normales × valor hora + horas
+          extra × valor hora × {costParams.multiplicador}, y en los feriados todas las
+          horas se pagan × {costParams.multiplicadorFeriado}. El valor hora sale de{" "}
+          {costParams.pagoPorHora > 0 ? (
+            <>
+              lo que cargaste en &quot;Pago por hora&quot; ($
+              {costParams.pagoPorHora.toLocaleString("es-AR")}), aplicado a todos los
+              empleados por igual.
+            </>
+          ) : (
+            <>
+              el sueldo base de cada empleado dividido {costParams.horasBase} hs — cargá
+              un &quot;Pago por hora&quot; arriba si preferís un cálculo más simple,
+              igual para todos.
+            </>
+          )}{" "}
+          No reemplaza el cálculo real de nómina.
           {holidays.length > 0 && (
             <>
               {" "}
