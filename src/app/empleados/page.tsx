@@ -1,17 +1,19 @@
 import Link from "next/link";
 import TutorialHint from "@/components/TutorialHint";
-import { listEmployees, listShiftTemplates } from "@/lib/notion";
+import { listEmployees, listShiftAssignments, listShiftTemplates } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function EmpleadosPage() {
   const empresaId = (await getEmpresaId())!;
-  const [employees, shifts] = await Promise.all([
+  const [employees, shifts, assignments] = await Promise.all([
     listEmployees(empresaId),
     listShiftTemplates(empresaId),
+    listShiftAssignments(empresaId),
   ]);
   const shiftById = new Map(shifts.map((s) => [s.id, s]));
+  const employeeIdsConAsignacion = new Set(assignments.map((a) => a.employeeId));
 
   return (
     <div className="space-y-6">
@@ -54,6 +56,7 @@ export default async function EmpleadosPage() {
             )}
             {employees.map((e) => {
               const shift = e.shiftId ? shiftById.get(e.shiftId) : undefined;
+              const sinTurno = !e.shiftId && !employeeIdsConAsignacion.has(e.id);
               return (
               <tr key={e.id} className="hover:bg-slate-50">
                 <td>
@@ -65,7 +68,18 @@ export default async function EmpleadosPage() {
                 <td>{e.puesto || "—"}</td>
                 <td>{e.area || "—"}</td>
                 <td>
-                  {shift ? `${shift.nombre} (${shift.horaEntrada}–${shift.horaSalida})` : "—"}
+                  {shift ? (
+                    `${shift.nombre} (${shift.horaEntrada}–${shift.horaSalida})`
+                  ) : sinTurno && e.estado === "Activo" ? (
+                    <span
+                      className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
+                      title="Sin turno ni asignación cargada: sus fichajes nunca van a detectar llegada tarde, y las horas extra se calculan contra una jornada estándar de 8hs."
+                    >
+                      Sin turno asignado
+                    </span>
+                  ) : (
+                    "—"
+                  )}
                 </td>
                 <td>
                   <span className={e.estado === "Activo" ? "badge-green" : "badge-gray"}>

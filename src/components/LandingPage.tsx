@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Logo from "./Logo";
+import BrandHeroBackground from "./BrandHeroBackground";
 
 const FEATURES = [
   {
@@ -29,31 +31,49 @@ const FEATURES = [
 
 export default function LandingPage() {
   return (
-    <div className="animate-page space-y-20 py-6">
+    <div className="animate-page space-y-20">
       {/* Hero */}
-      <section className="text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-2xl font-bold text-white shadow-lg">
-          P
+      <section className="relative -mx-4 -mt-6 overflow-hidden px-4 py-20 text-center sm:-mx-6 sm:-mt-8 sm:px-6 sm:py-28">
+        <BrandHeroBackground />
+        <div className="relative">
+          <div className="mx-auto flex justify-center drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]">
+            <Logo invert size="lg" />
+          </div>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-white/80">
+            Control de asistencia y horas para tu equipo, sin planillas ni dolores de cabeza.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-2.5 text-base font-medium text-[#1c02ab] shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/planes"
+              className="inline-flex items-center justify-center rounded-lg border border-white/30 px-6 py-2.5 text-base font-medium text-white transition-all duration-150 hover:border-white/60 hover:bg-white/10"
+            >
+              Ver planes
+            </Link>
+          </div>
         </div>
-        <h1
-          className="mt-6 text-4xl font-semibold tracking-tight sm:text-5xl"
-          style={{ color: "var(--foreground)" }}
+      </section>
+
+      {/* Próximamente */}
+      <section className="mx-auto max-w-3xl">
+        <div
+          className="card flex flex-col items-start gap-3 sm:flex-row sm:items-center"
+          style={{ borderStyle: "dashed", borderColor: "var(--accent)" }}
         >
-          Puntual
-        </h1>
-        <p
-          className="mx-auto mt-4 max-w-xl text-lg"
-          style={{ color: "var(--foreground-secondary)" }}
-        >
-          Control de asistencia y horas para tu equipo, sin planillas ni dolores de cabeza.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/login" className="btn-primary px-6 py-2.5 text-base">
-            Iniciar sesión
-          </Link>
-          <Link href="/planes" className="btn-secondary px-6 py-2.5 text-base">
-            Ver planes
-          </Link>
+          <span className="badge shrink-0 bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+            Próximamente
+          </span>
+          <p className="text-sm" style={{ color: "var(--foreground-secondary)" }}>
+            Estamos construyendo{" "}
+            <strong style={{ color: "var(--foreground)" }}>Puntual Stock</strong>, una nueva
+            app para controlar el inventario de tu negocio — y no es lo único que viene.
+            Si necesitás algo específico, contanos y lo construimos.
+          </p>
         </div>
       </section>
 

@@ -9,7 +9,7 @@ export interface HoursBar {
   extra: number;
 }
 
-const COLOR_REGULAR = "#2a78d6";
+const COLOR_REGULAR = "#1c02ab";
 const COLOR_EXTRA = "#eb6834";
 
 const CHART_HEIGHT = 220;

@@ -32,9 +32,42 @@ async function Dashboard({ empresaId }: { empresaId: string }) {
   const weekTotalHoras = weekAttendance.reduce((acc, r) => acc + (r.horasTrabajadas ?? 0), 0);
 
   const stats = [
-    { label: "Empleados activos", value: activos, href: "/empleados" },
-    { label: "Fichajes de hoy", value: fichajesHoy, href: "/asistencia" },
-    { label: "Llegadas tarde hoy", value: tardeHoy, href: "/asistencia" },
+    {
+      label: "Empleados activos",
+      value: activos,
+      href: "/empleados",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m5-2.13a4 4 0 100-8 4 4 0 000 8zm6-1a4 4 0 10-1.32-7.78"
+        />
+      ),
+    },
+    {
+      label: "Fichajes de hoy",
+      value: fichajesHoy,
+      href: "/asistencia",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      ),
+    },
+    {
+      label: "Llegadas tarde hoy",
+      value: tardeHoy,
+      href: "/asistencia",
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      ),
+    },
   ];
 
   return (
@@ -58,10 +91,17 @@ async function Dashboard({ empresaId }: { empresaId: string }) {
           <Link
             key={s.label}
             href={s.href}
-            className="card p-4 hover:border-slate-300 sm:p-6"
+            className="card stat-tile p-4 hover:border-slate-300 sm:p-6"
           >
+            <span className="stat-tile-icon">
+              <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={2}>
+                {s.icon}
+              </svg>
+            </span>
             <p className="text-xs text-slate-500 sm:text-sm">{s.label}</p>
-            <p className="mt-2 text-2xl font-semibold sm:text-3xl">{s.value}</p>
+            <p className="mt-1 text-2xl font-semibold sm:text-3xl" style={{ color: "var(--accent)" }}>
+              {s.value}
+            </p>
           </Link>
         ))}
       </div>

@@ -18,9 +18,9 @@ function rowsHtml(records: Pick<AttendanceRecord, "fecha" | "horaEntrada" | "hor
     .map(
       (r) => `
       <tr>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.fecha}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.horaEntrada} - ${r.horaSalida ?? "—"}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.observaciones || "—"}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.fecha}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.horaEntrada} - ${r.horaSalida ?? "—"}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.observaciones || "—"}</td>
       </tr>`
     )
     .join("");
@@ -28,10 +28,13 @@ function rowsHtml(records: Pick<AttendanceRecord, "fecha" | "horaEntrada" | "hor
 
 function wrapHtml(title: string, bodyHtml: string) {
   return `
-    <div style="font-family:Arial,Helvetica,sans-serif;color:#0f172a;max-width:560px;margin:0 auto;">
-      <h2 style="margin-bottom:4px;">${title}</h2>
+    <div style="font-family:Arial,Helvetica,sans-serif;color:#171717;max-width:560px;margin:0 auto;">
+      <div style="padding:16px 0;border-bottom:3px solid #1c02ab;margin-bottom:20px;">
+        <span style="font-size:20px;font-weight:700;color:#1c02ab;letter-spacing:-0.02em;">Puntual</span>
+      </div>
+      <h2 style="margin-bottom:4px;color:#171717;">${title}</h2>
       ${bodyHtml}
-      <p style="color:#64748b;font-size:12px;margin-top:24px;">
+      <p style="color:#737373;font-size:12px;margin-top:24px;border-top:1px solid #e5e5e5;padding-top:12px;">
         Este mensaje fue generado automáticamente por Puntual.
       </p>
     </div>`;
@@ -49,7 +52,7 @@ export async function sendSingleObservationEmail(
     <p>Hola ${employee.nombre},</p>
     <p>Te compartimos la observación registrada en tu fichaje del día <strong>${record.fecha}</strong>
     (${record.horaEntrada} - ${record.horaSalida ?? "en curso"}):</p>
-    <blockquote style="border-left:3px solid #6366f1;margin:12px 0;padding:8px 14px;background:#f8fafc;">
+    <blockquote style="border-left:3px solid #1c02ab;margin:12px 0;padding:8px 14px;background:#fafafa;">
       ${record.observaciones || "(sin observaciones)"}
     </blockquote>`
   );
@@ -78,7 +81,7 @@ export async function sendSummaryEmail(
     <p>Este es el resumen de tus fichajes y observaciones entre <strong>${dateFrom}</strong> y <strong>${dateTo}</strong>:</p>
     <table style="border-collapse:collapse;width:100%;font-size:14px;">
       <thead>
-        <tr style="text-align:left;background:#f1f5f9;">
+        <tr style="text-align:left;background:#f5f5f5;">
           <th style="padding:6px 10px;">Fecha</th>
           <th style="padding:6px 10px;">Horario</th>
           <th style="padding:6px 10px;">Observaciones</th>
@@ -119,11 +122,11 @@ export async function sendWeeklyAdminSummary(
     .map(
       (r) => `
       <tr>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.nombre}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.fichajes}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.horasTrabajadas.toFixed(2)}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.horasExtra.toFixed(2)}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.tardanzas}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.nombre}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.fichajes}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.horasTrabajadas.toFixed(2)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.horasExtra.toFixed(2)}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #e5e5e5;">${r.tardanzas}</td>
       </tr>`
     )
     .join("");
@@ -134,7 +137,7 @@ export async function sendWeeklyAdminSummary(
     <p>Este es el resumen de horas de tu equipo para <strong>${weekLabel}</strong>:</p>
     <table style="border-collapse:collapse;width:100%;font-size:14px;">
       <thead>
-        <tr style="text-align:left;background:#f1f5f9;">
+        <tr style="text-align:left;background:#f5f5f5;">
           <th style="padding:6px 10px;">Empleado</th>
           <th style="padding:6px 10px;">Fichajes</th>
           <th style="padding:6px 10px;">Horas trabajadas</th>
@@ -142,7 +145,7 @@ export async function sendWeeklyAdminSummary(
           <th style="padding:6px 10px;">Llegadas tarde</th>
         </tr>
       </thead>
-      <tbody>${body || `<tr><td colspan="5" style="padding:10px;color:#64748b;">Sin fichajes esta semana.</td></tr>`}</tbody>
+      <tbody>${body || `<tr><td colspan="5" style="padding:10px;color:#737373;">Sin fichajes esta semana.</td></tr>`}</tbody>
       <tfoot>
         <tr style="font-weight:600;">
           <td style="padding:6px 10px;">Total</td>

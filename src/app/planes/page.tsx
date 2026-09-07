@@ -91,6 +91,20 @@ export default async function PlanesPage() {
         ))}
       </div>
 
+      <div
+        className="card mx-auto flex max-w-2xl flex-col items-start gap-3 text-left sm:flex-row sm:items-center"
+        style={{ borderStyle: "dashed", borderColor: "var(--accent)" }}
+      >
+        <span className="badge shrink-0 bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+          Próximamente
+        </span>
+        <p className="text-sm text-slate-500">
+          Estamos construyendo <strong className="text-slate-700 dark:text-slate-200">Puntual Stock</strong>,
+          una nueva app para controlar el inventario de tu negocio — y no es lo único que viene.
+          Si necesitás algo específico, contanos y lo construimos.
+        </p>
+      </div>
+
       {!empresaId && (
         <div className="text-center">
           <p className="text-sm text-slate-500">¿Ya sos cliente?</p>

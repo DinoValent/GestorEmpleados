@@ -4,27 +4,8 @@ import { signOut } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useLocalToggle } from "@/lib/useLocalToggle";
+import MiniSwitch from "./MiniSwitch";
 import ThemeToggle from "./ThemeToggle";
-
-function MiniSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-300 ${
-        checked ? "bg-indigo-500" : "bg-slate-200"
-      }`}
-    >
-      <span
-        className={`inline-block h-4.5 w-4.5 transform rounded-full bg-white shadow-md transition-transform duration-300 ${
-          checked ? "translate-x-6" : "translate-x-1"
-        }`}
-      />
-    </button>
-  );
-}
 
 export default function SettingsMenu({ email }: { email?: string | null }) {
   const [open, setOpen] = useState(false);

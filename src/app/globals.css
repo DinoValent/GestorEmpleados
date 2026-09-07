@@ -4,19 +4,24 @@
 
 :root {
   color-scheme: light;
-  --background: #f6f7fb;
+  --background: #fafafa;
   --surface: #ffffff;
-  --surface-hover: #f8fafc;
-  --foreground: #0f172a;
-  --foreground-secondary: #475569;
-  --foreground-muted: #94a3b8;
-  --border: #e2e8f0;
-  --border-subtle: #f1f5f9;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-soft: #eef2ff;
-  --accent-soft-text: #4338ca;
-  --shadow-color: 220 30% 60%;
+  --surface-hover: #f5f5f5;
+  --foreground: #171717;
+  --foreground-secondary: #525252;
+  --foreground-muted: #a3a3a3;
+  --border: #e5e5e5;
+  --border-subtle: #f5f5f5;
+  --brand: #1c02ab;
+  --brand-black: #000000;
+  --brand-white: #ffffff;
+  --accent: #1c02ab;
+  --accent-hover: color-mix(in srgb, #1c02ab 82%, black);
+  --accent-soft: color-mix(in srgb, #1c02ab 8%, white);
+  --accent-soft-text: color-mix(in srgb, #1c02ab 88%, black);
+  --shadow-color: 250 85% 35%;
+  --logo-fg: #000000;
+  --logo-dot: #ffffff;
 }
 
 :root[data-theme="dark"],
@@ -34,18 +39,59 @@
   --foreground-muted: #5b6482;
   --border: #232a45;
   --border-subtle: #1a2038;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-soft: rgba(99, 102, 241, 0.16);
-  --accent-soft-text: #b4baff;
+  --accent: color-mix(in srgb, #1c02ab 55%, white);
+  --accent-hover: color-mix(in srgb, #1c02ab 40%, white);
+  --accent-soft: rgba(28, 2, 171, 0.22);
+  --accent-soft-text: color-mix(in srgb, #1c02ab 35%, white);
   --shadow-color: 230 60% 3%;
+  --logo-fg: #ffffff;
+  --logo-dot: #000000;
+}
+
+/* Fuerza la versión clara del logo (para usar sobre fondos oscuros fijos,
+   como el hero del login y del inicio) sin importar el modo del sitio. */
+.logo-invert {
+  --logo-fg: #ffffff;
+  --logo-dot: #000000;
+}
+
+/* Redefine la paleta indigo y violet de Tailwind con el color de marca exacto
+   (#1c02ab). Como estas variables no están dentro de un @layer, ganan sobre
+   las de @theme y así cualquier utilidad "indigo" o "violet" usada en el
+   resto de la app (con o sin opacidad, con o sin dark:) queda en el color de
+   marca sin tener que tocar cada componente. */
+:root {
+  --color-indigo-50: color-mix(in srgb, #1c02ab 6%, white);
+  --color-indigo-100: color-mix(in srgb, #1c02ab 12%, white);
+  --color-indigo-300: color-mix(in srgb, #1c02ab 45%, white);
+  --color-indigo-400: color-mix(in srgb, #1c02ab 68%, white);
+  --color-indigo-500: #1c02ab;
+  --color-indigo-600: #1c02ab;
+  --color-indigo-700: color-mix(in srgb, #1c02ab 82%, black);
+  --color-violet-500: #1c02ab;
+  --color-violet-600: color-mix(in srgb, #1c02ab 70%, black);
+
+  /* Tailwind's "slate" trae un matiz azulado propio de su paleta por defecto.
+     Lo reemplazamos por una escala de grises neutra (sin tinte de color) para
+     que los únicos colores de toda la app sean negro, blanco y el azul de
+     marca — nada de "azul gris" genérico de por medio. */
+  --color-slate-50: #fafafa;
+  --color-slate-100: #f5f5f5;
+  --color-slate-200: #e5e5e5;
+  --color-slate-300: #d4d4d4;
+  --color-slate-400: #a3a3a3;
+  --color-slate-500: #737373;
+  --color-slate-600: #525252;
+  --color-slate-700: #404040;
+  --color-slate-800: #262626;
+  --color-slate-900: #171717;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-fustat);
+  --font-mono: var(--font-fustat);
 }
 
 * {
@@ -61,13 +107,46 @@ html.dark {
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(900px 520px at 100% -8%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%),
+    radial-gradient(700px 520px at -8% 100%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 60%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    var(--font-fustat), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+    sans-serif;
   transition:
     background-color 0.25s ease,
     color 0.25s ease;
+}
+
+/* ---------- detalles de marca ---------- */
+
+::selection {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 999px;
+  border: 3px solid var(--background);
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent);
 }
 
 /* ---------- animations ---------- */
@@ -169,6 +248,20 @@ body {
     border-color: var(--accent);
   }
 
+  .stat-tile {
+    @apply relative overflow-hidden;
+  }
+  .stat-tile::before {
+    content: "";
+    @apply absolute inset-x-0 top-0 h-1;
+    background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  }
+  .stat-tile-icon {
+    @apply mb-2 flex h-8 w-8 items-center justify-center rounded-lg;
+    background: var(--accent-soft);
+    color: var(--accent-soft-text);
+  }
+
   .btn-primary {
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50;
     background: linear-gradient(135deg, var(--accent), var(--accent-hover));
@@ -237,10 +330,17 @@ body {
     @apply w-full text-left text-sm;
     color: var(--foreground-secondary);
   }
-  .table-base th {
-    @apply px-3 py-2 text-xs font-semibold tracking-wide uppercase;
-    border-bottom: 1px solid var(--border);
-    color: var(--foreground-muted);
+  .table-base thead th {
+    @apply px-3 py-2.5 text-xs font-semibold tracking-wide uppercase;
+    background: var(--accent-soft);
+    border-bottom: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    color: var(--accent-soft-text);
+  }
+  .table-base thead tr:first-child th:first-child {
+    @apply rounded-tl-lg;
+  }
+  .table-base thead tr:first-child th:last-child {
+    @apply rounded-tr-lg;
   }
   .table-base td {
     @apply px-3 py-2;
@@ -249,8 +349,18 @@ body {
   .table-base tbody tr {
     @apply transition-colors duration-150;
   }
+  .table-base tbody tr:nth-child(even) {
+    background: color-mix(in srgb, var(--accent) 3%, transparent);
+  }
   .table-base tbody tr:hover {
-    background: var(--surface-hover);
+    background: var(--accent-soft);
+  }
+  .table-base tfoot td {
+    @apply px-3 py-2.5;
+    background: var(--accent-soft);
+    border-top: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-bottom: none;
+    color: var(--foreground);
   }
 
   .skeleton {

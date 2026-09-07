@@ -4,6 +4,7 @@ import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import Logo from "./Logo";
 import SettingsMenu from "./SettingsMenu";
 
 const NAV_LINKS = [
@@ -51,13 +52,9 @@ export default function NavBar() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
         <Link
           href={!authenticated ? "/" : isAdmin ? "/" : "/mi-fichaje"}
-          className="flex items-center gap-2 text-lg font-semibold tracking-tight transition-opacity hover:opacity-80"
-          style={{ color: "var(--foreground)" }}
+          className="transition-opacity hover:opacity-80"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-sm">
-            P
-          </span>
-          Puntual
+          <Logo size="sm" />
         </Link>
 
         {!authenticated && (status === "unauthenticated" || staleSession) && (

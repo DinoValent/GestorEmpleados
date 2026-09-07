@@ -74,8 +74,12 @@ export default async function ResumenPagosPage({
   ]);
   const shiftById = new Map(shifts.map((s) => [s.id, s]));
 
+  // Un empleado dado de baja igual tiene que cobrar los días que trabajó dentro
+  // del período — por eso no se filtra solo por "Activo": también se incluye a
+  // cualquiera que haya fichado en este rango, aunque hoy esté inactivo.
+  const employeeIdsConFichajes = new Set(records.map((r) => r.employeeId));
   const activos = employees
-    .filter((e) => e.estado === "Activo")
+    .filter((e) => e.estado === "Activo" || employeeIdsConFichajes.has(e.id))
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   type Row = { horasTrabajadas: number; horasExtra: number; fichajes: number };
@@ -178,7 +182,12 @@ export default async function ResumenPagosPage({
               const status = scheduleStatusByEmployee.get(e.id);
               return (
                 <tr key={e.id}>
-                  <td className="font-medium">{e.nombre}</td>
+                  <td className="font-medium">
+                    {e.nombre}
+                    {e.estado !== "Activo" && (
+                      <span className="badge-gray ml-2 align-middle">Dado de baja</span>
+                    )}
+                  </td>
                   <td className="font-mono text-xs text-slate-500 whitespace-nowrap">
                     {status?.rotativo ? (
                       <span className="badge bg-indigo-100 text-indigo-700">Rotativo</span>
@@ -189,7 +198,12 @@ export default async function ResumenPagosPage({
                         {shift.horaEntrada} a {shift.horaSalida}
                       </>
                     ) : (
-                      "—"
+                      <span
+                        className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
+                        title="Sin turno de referencia en este período: sus llegadas tarde no se detectan y las horas extra se calculan contra una jornada estándar de 8hs."
+                      >
+                        Sin turno
+                      </span>
                     )}
                   </td>
                   <td className="font-mono tabular-nums">{row.fichajes}</td>

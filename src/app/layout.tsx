@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fustat } from "next/font/google";
+import AppWatermark from "@/components/AppWatermark";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
 import NavBar from "@/components/NavBar";
 import PageTransition from "@/components/PageTransition";
@@ -15,13 +16,8 @@ const THEME_INIT_SCRIPT = `
 })();
 `;
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fustat = Fustat({
+  variable: "--font-fustat",
   subsets: ["latin"],
 });
 
@@ -35,12 +31,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fustat.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
+        <AppWatermark />
         <AuthSessionProvider>
           <NavBar />
           <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">

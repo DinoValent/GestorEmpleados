@@ -439,13 +439,23 @@ function computeDerived(
 
   let horasTrabajadas: number | null = null;
   let horasExtra: number | null = null;
-  const salidaMin = horaSalida ? toMinutes(horaSalida) : null;
+  let salidaMin = horaSalida ? toMinutes(horaSalida) : null;
   if (entradaMin !== null && salidaMin !== null) {
+    // Turnos que cruzan la medianoche (ej. 22:00 a 06:00): si la salida da un
+    // horario menor o igual a la entrada, ocurrió al día siguiente.
+    if (salidaMin <= entradaMin) salidaMin += 24 * 60;
     horasTrabajadas = Math.max(
       0,
       Math.round(((salidaMin - entradaMin) / 60) * 100) / 100,
     );
-    const habitualSalidaMin = toMinutes(schedule.horaSalida);
+    let habitualSalidaMin = toMinutes(schedule.horaSalida);
+    if (
+      habitualEntradaMin !== null &&
+      habitualSalidaMin !== null &&
+      habitualSalidaMin <= habitualEntradaMin
+    ) {
+      habitualSalidaMin += 24 * 60;
+    }
     const jornadaEstandar =
       habitualEntradaMin !== null && habitualSalidaMin !== null
         ? Math.max(0, (habitualSalidaMin - habitualEntradaMin) / 60)

@@ -13,7 +13,7 @@ function pad(n: number) {
 type Status = "ongoing" | "late" | "onTime";
 
 const STATUS_STYLE: Record<Status, { bg: string; border: string; text: string }> = {
-  ongoing: { bg: "#EEF2FF", border: "#818CF8", text: "#4338CA" },
+  ongoing: { bg: "#EEEBFB", border: "#7C6AE0", text: "#1c02ab" },
   late: { bg: "#FEF2F2", border: "#F87171", text: "#B91C1C" },
   onTime: { bg: "#ECFDF5", border: "#6EE7B7", text: "#065F46" },
 };
