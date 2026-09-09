@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fustat } from "next/font/google";
+import Script from "next/script";
 import AppWatermark from "@/components/AppWatermark";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
 import NavBar from "@/components/NavBar";
@@ -33,10 +34,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${fustat.variable} h-full antialiased`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="min-h-full flex flex-col">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {THEME_INIT_SCRIPT}
+        </Script>
         <AppWatermark />
         <AuthSessionProvider>
           <NavBar />

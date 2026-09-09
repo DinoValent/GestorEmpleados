@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import BrandHeroBackground from "@/components/BrandHeroBackground";
 import LoginForm from "@/components/LoginForm";
 import Logo from "@/components/Logo";
@@ -9,6 +10,16 @@ export default function LoginPage() {
       <div className="fixed inset-0 -z-10">
         <BrandHeroBackground />
       </div>
+
+      <Link
+        href="/"
+        className="absolute top-6 left-4 inline-flex items-center gap-1.5 text-sm font-medium text-white/80 transition-colors hover:text-white sm:left-6"
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
+        </svg>
+        Volver
+      </Link>
 
       <div className="drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]">
         <Logo invert size="lg" />

@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployee, listUsers, upsertUser } from "@/lib/notion";
+import { assertAdminLimit, assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
 import { getEmpresaId } from "@/lib/session";
 import type { Rol } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const { email, password, rol, employeeId } = (await req.json()) as {
       email?: string;
       password?: string;
@@ -47,6 +49,9 @@ export async function POST(req: NextRequest) {
     if (employeeId) {
       await getEmployee(employeeId, empresaId); // valida que el empleado sea de esta empresa
     }
+    if (rol === "Admin") {
+      await assertAdminLimit(empresaId);
+    }
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await upsertUser(empresaId, {
       email,
@@ -57,6 +62,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ...user, passwordHash: undefined }, { status: 201 });
   } catch (err) {
     console.error(err);
+    const planError = planLimitResponse(err);
+    if (planError) return planError;
     const message = err instanceof Error ? err.message : "No se pudo guardar el usuario";
     return NextResponse.json({ error: message }, { status: 500 });
   }

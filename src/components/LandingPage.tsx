@@ -1,6 +1,7 @@
 import Link from "next/link";
-import Logo from "./Logo";
-import BrandHeroBackground from "./BrandHeroBackground";
+import Reveal from "./Reveal";
+import HeroCarousel from "./landing/HeroCarousel";
+import FaqAccordion from "./landing/FaqAccordion";
 
 const FEATURES = [
   {
@@ -29,38 +30,30 @@ const FEATURES = [
   },
 ];
 
+const PLANES_TEASER = [
+  {
+    nombre: "Inicial",
+    precioOriginal: "$90.000",
+    precio: "$50.000",
+    resumen: "Hasta 4 empleados · 1 administrador",
+    destacado: false,
+  },
+  {
+    nombre: "Premium",
+    precioOriginal: "$130.000",
+    precio: "$85.000",
+    resumen: "Hasta 10 empleados · 3 administradores",
+    destacado: true,
+  },
+];
+
 export default function LandingPage() {
   return (
-    <div className="animate-page space-y-20">
-      {/* Hero */}
-      <section className="relative -mx-4 -mt-6 overflow-hidden px-4 py-20 text-center sm:-mx-6 sm:-mt-8 sm:px-6 sm:py-28">
-        <BrandHeroBackground />
-        <div className="relative">
-          <div className="mx-auto flex justify-center drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]">
-            <Logo invert size="lg" />
-          </div>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-white/80">
-            Control de asistencia y horas para tu equipo, sin planillas ni dolores de cabeza.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-lg bg-white px-6 py-2.5 text-base font-medium text-[#1c02ab] shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              href="/planes"
-              className="inline-flex items-center justify-center rounded-lg border border-white/30 px-6 py-2.5 text-base font-medium text-white transition-all duration-150 hover:border-white/60 hover:bg-white/10"
-            >
-              Ver planes
-            </Link>
-          </div>
-        </div>
-      </section>
+    <div className="space-y-24">
+      <HeroCarousel />
 
       {/* Próximamente */}
-      <section className="mx-auto max-w-3xl">
+      <Reveal className="mx-auto max-w-3xl px-4 sm:px-0">
         <div
           className="card flex flex-col items-start gap-3 sm:flex-row sm:items-center"
           style={{ borderStyle: "dashed", borderColor: "var(--accent)" }}
@@ -75,10 +68,10 @@ export default function LandingPage() {
             Si necesitás algo específico, contanos y lo construimos.
           </p>
         </div>
-      </section>
+      </Reveal>
 
       {/* Qué es */}
-      <section className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl px-4 text-center sm:px-0">
         <h2 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
           ¿Qué es Puntual?
         </h2>
@@ -88,39 +81,112 @@ export default function LandingPage() {
           trabajadas, las horas extra y el costo de cada período — todo listo para liquidar
           sueldos sin hacer cuentas a mano.
         </p>
-      </section>
+      </Reveal>
 
-      {/* Features */}
-      <section>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="card">
-              <h3 className="font-semibold" style={{ color: "var(--foreground)" }}>
-                {f.title}
-              </h3>
-              <p className="mt-1.5 text-sm" style={{ color: "var(--foreground-secondary)" }}>
-                {f.text}
-              </p>
-            </div>
+      {/* Funciones */}
+      <section id="funciones" className="scroll-mt-20 px-4 sm:px-0">
+        <Reveal>
+          <h2
+            className="text-center text-2xl font-semibold tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            Funciones
+          </h2>
+        </Reveal>
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((f, i) => (
+            <Reveal key={f.title} delayMs={i * 60}>
+              <div className="card h-full">
+                <h3 className="font-semibold" style={{ color: "var(--foreground)" }}>
+                  {f.title}
+                </h3>
+                <p className="mt-1.5 text-sm" style={{ color: "var(--foreground-secondary)" }}>
+                  {f.text}
+                </p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      {/* A medida */}
-      <section className="card mx-auto max-w-3xl text-center">
-        <h2 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
-          ¿Necesitás algo distinto?
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl" style={{ color: "var(--foreground-secondary)" }}>
-          Puntual es nuestro producto insignia, pero no es lo único que hacemos. También
-          desarrollamos aplicaciones a medida para cualquier tipo de negocio — sea cual sea
-          el rubro o el estilo que necesites, podemos construir la herramienta que tu
-          negocio necesita, adaptada 100% a tu forma de trabajar.
-        </p>
+      {/* Precios (teaser, los planes completos viven en /planes) */}
+      <section id="precios" className="scroll-mt-20 px-4 sm:px-0">
+        <Reveal>
+          <h2
+            className="text-center text-2xl font-semibold tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            Precios
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-center" style={{ color: "var(--foreground-secondary)" }}>
+            Descuento promocional por tiempo limitado.
+          </p>
+        </Reveal>
+        <div className="mx-auto mt-8 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
+          {PLANES_TEASER.map((p, i) => (
+            <Reveal key={p.nombre} delayMs={i * 80}>
+              <div className={`card h-full ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}>
+                <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                  Descuento promocional
+                </span>
+                <h3 className="mt-3 text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+                  {p.nombre}
+                </h3>
+                <p className="mt-1 text-sm" style={{ color: "var(--foreground-secondary)" }}>
+                  {p.resumen}
+                </p>
+                <p className="mt-4 flex flex-wrap items-baseline gap-2">
+                  <span className="text-base text-slate-400 line-through">{p.precioOriginal}</span>
+                  <span className="text-2xl font-semibold" style={{ color: "var(--foreground)" }}>
+                    {p.precio}
+                  </span>
+                  <span className="text-sm text-slate-400">/mes</span>
+                </p>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+        <Reveal className="mt-6 text-center">
+          <Link href="/planes" className="btn-primary inline-flex px-6">
+            Ver todos los planes
+          </Link>
+        </Reveal>
       </section>
 
+      {/* FAQ */}
+      <section id="faq" className="scroll-mt-20 px-4 sm:px-0">
+        <Reveal>
+          <h2
+            className="text-center text-2xl font-semibold tracking-tight"
+            style={{ color: "var(--foreground)" }}
+          >
+            Preguntas frecuentes
+          </h2>
+        </Reveal>
+        <div className="mt-8">
+          <Reveal>
+            <FaqAccordion />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* A medida */}
+      <Reveal className="px-4 sm:px-0">
+        <div className="card mx-auto max-w-3xl text-center">
+          <h2 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
+            ¿Necesitás algo distinto?
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl" style={{ color: "var(--foreground-secondary)" }}>
+            Puntual es nuestro producto insignia, pero no es lo único que hacemos. También
+            desarrollamos aplicaciones a medida para cualquier tipo de negocio — sea cual sea
+            el rubro o el estilo que necesites, podemos construir la herramienta que tu
+            negocio necesita, adaptada 100% a tu forma de trabajar.
+          </p>
+        </div>
+      </Reveal>
+
       {/* Contacto */}
-      <section className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl px-4 text-center sm:px-0">
         <h2 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
           Hablemos
         </h2>
@@ -159,9 +225,9 @@ export default function LandingPage() {
             @puntual.servicio
           </a>
         </div>
-      </section>
+      </Reveal>
 
-      <footer className="text-center text-xs" style={{ color: "var(--foreground-muted)" }}>
+      <footer className="px-4 text-center text-xs sm:px-0" style={{ color: "var(--foreground-muted)" }}>
         © {new Date().getFullYear()} Puntual. Todos los derechos reservados.
       </footer>
     </div>

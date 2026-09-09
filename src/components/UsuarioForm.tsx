@@ -6,8 +6,10 @@ import type { Rol } from "@/lib/types";
 
 export default function UsuarioForm({
   employees,
+  apiBase = "/api/usuarios",
 }: {
   employees: { id: string; nombre: string }[];
+  apiBase?: string;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -22,7 +24,7 @@ export default function UsuarioForm({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/usuarios", {
+      const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

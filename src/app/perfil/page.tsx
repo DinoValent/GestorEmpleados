@@ -16,12 +16,13 @@ function initialsOf(email: string): string {
 
 export default async function PerfilPage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user || !session.user.empresaId) redirect("/login");
+  const empresaId = session.user.empresaId;
 
   const [empresa, employees, users] = await Promise.all([
-    getCompany(session.user.empresaId),
-    listEmployees(session.user.empresaId),
-    listUsers(session.user.empresaId),
+    getCompany(empresaId),
+    listEmployees(empresaId),
+    listUsers(empresaId),
   ]);
 
   const empleadosActivos = employees.filter((e) => e.estado === "Activo").length;

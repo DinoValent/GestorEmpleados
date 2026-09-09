@@ -4,6 +4,11 @@ export interface Company {
   id: string;
   nombre: string;
   estado: Estado;
+  plan: string | null;
+  maxEmpleados: number;
+  maxAdmins: number;
+  /** ISO date (yyyy-mm-dd), o null si no tiene vencimiento asignado. */
+  fechaVencimiento: string | null;
 }
 
 export type CompanyInput = Omit<Company, "id">;
@@ -44,11 +49,12 @@ export interface AttendanceRecord {
   precision: number | null;
 }
 
-export type Rol = "Admin" | "Empleado";
+export type Rol = "Admin" | "Empleado" | "SuperAdmin";
 
 export interface AppUser {
   id: string;
-  empresaId: string;
+  /** null para un SuperAdmin, que no pertenece a ninguna empresa. */
+  empresaId: string | null;
   email: string;
   passwordHash: string;
   rol: Rol;

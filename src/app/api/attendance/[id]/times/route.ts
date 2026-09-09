@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { updateAttendanceTimes } from "@/lib/notion";
+import { assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
 import { getEmpresaId } from "@/lib/session";
 
 export async function PATCH(
@@ -10,6 +11,7 @@ export async function PATCH(
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const { id } = await params;
     const { horaEntrada, horaSalida } = (await req.json()) as {
       horaEntrada?: string;
@@ -26,6 +28,6 @@ export async function PATCH(
     return NextResponse.json(record);
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo actualizar el fichaje" }, { status: 500 });
+    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo actualizar el fichaje" }, { status: 500 });
   }
 }

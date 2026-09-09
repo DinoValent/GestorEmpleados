@@ -6,6 +6,7 @@ import {
   listShiftAssignments,
   listShiftTemplates,
 } from "@/lib/notion";
+import { assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
 import { getEmpresaId } from "@/lib/session";
 import type { ShiftAssignmentInput } from "@/lib/types";
 
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const data = (await req.json()) as Omit<ShiftAssignmentInput, "empresaId">;
     if (!data.employeeId || !data.shiftId || !data.fechaInicio) {
       return NextResponse.json(
@@ -43,17 +45,18 @@ export async function POST(req: NextRequest) {
     if (!employee || !shift) {
       return NextResponse.json({ error: "Empleado o turno inválido" }, { status: 400 });
     }
-    const assignment = await createShiftAssignment(
-      { ...data, empresaId, diasSemana: data.diasSemana ?? [], esFijo: data.esFijo ?? false },
-      employee.nombre,
-      shift.nombre
-    );
+    const assignment = await createShiftAssignment({
+      ...data,
+      empresaId,
+      diasSemana: data.diasSemana ?? [],
+      esFijo: data.esFijo ?? false,
+    });
     revalidatePath("/turnos");
     revalidatePath("/asistencia");
     revalidatePath("/resumen-pagos");
     return NextResponse.json(assignment, { status: 201 });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo crear la asignación" }, { status: 500 });
+    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo crear la asignación" }, { status: 500 });
   }
 }

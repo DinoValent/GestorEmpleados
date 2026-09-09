@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createShiftTemplate, listShiftTemplates } from "@/lib/notion";
+import { assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
 import { getEmpresaId } from "@/lib/session";
 import type { ShiftTemplateInput } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const data = (await req.json()) as Omit<ShiftTemplateInput, "empresaId">;
     if (!data.nombre?.trim() || !data.horaEntrada || !data.horaSalida) {
       return NextResponse.json(
@@ -32,6 +34,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(shift, { status: 201 });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo crear el turno" }, { status: 500 });
+    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo crear el turno" }, { status: 500 });
   }
 }

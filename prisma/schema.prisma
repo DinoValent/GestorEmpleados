@@ -1,0 +1,160 @@
+// Prisma schema — Postgres, migrado desde Notion.
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id               String    @id @default(uuid())
+  nombre           String
+  estado           String    @default("Activo")
+  plan             String?
+  maxEmpleados     Int       @default(999999)
+  maxAdmins        Int       @default(999999)
+  fechaVencimiento DateTime? @db.Date
+  createdAt        DateTime  @default(now())
+
+  employees        Employee[]
+  attendance       AttendanceRecord[]
+  absences         Absence[]
+  users            AppUser[]
+  holidays         Holiday[]
+  shiftTemplates   ShiftTemplate[]
+  shiftAssignments ShiftAssignment[]
+
+  @@map("companies")
+}
+
+model Employee {
+  id           String    @id @default(uuid())
+  empresaId    String
+  empresa      Company   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nombre       String
+  legajo       String    @default("")
+  dni          String    @default("")
+  puesto       String    @default("")
+  area         String    @default("")
+  email        String    @default("")
+  telefono     String    @default("")
+  fechaIngreso DateTime? @db.Date
+  shiftId      String?
+  shift        ShiftTemplate? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  estado       String    @default("Activo")
+  salarioBase  Float?
+  createdAt    DateTime  @default(now())
+
+  attendance       AttendanceRecord[]
+  absences         Absence[]
+  shiftAssignments ShiftAssignment[]
+  users            AppUser[]
+
+  @@index([empresaId])
+  @@index([shiftId])
+  @@map("employees")
+}
+
+model AttendanceRecord {
+  id              String   @id @default(uuid())
+  empresaId       String
+  empresa         Company  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  registro        String   @default("")
+  fecha           DateTime @db.Date
+  horaEntrada     String   @default("")
+  horaSalida      String?
+  horasTrabajadas Float?
+  horasExtra      Float?
+  llegadaTarde    Boolean  @default(false)
+  minutosTardanza Int?
+  observaciones   String   @default("")
+  latitud         Float?
+  longitud        Float?
+  precision       Float?
+  createdAt       DateTime @default(now())
+
+  @@index([empresaId, fecha])
+  @@index([employeeId, fecha])
+  @@map("attendance_records")
+}
+
+model Absence {
+  id            String   @id @default(uuid())
+  empresaId     String
+  empresa       Company  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fechaInicio   DateTime @db.Date
+  fechaFin      DateTime @db.Date
+  tipo          String
+  observaciones String   @default("")
+
+  @@index([empresaId])
+  @@index([employeeId])
+  @@map("absences")
+}
+
+model AppUser {
+  id           String   @id @default(uuid())
+  empresaId    String?
+  empresa      Company? @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  email        String   @unique
+  passwordHash String
+  rol          String
+  employeeId   String?
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId])
+  @@map("app_users")
+}
+
+model Holiday {
+  id        String   @id @default(uuid())
+  empresaId String
+  empresa   Company  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nombre    String
+  fecha     DateTime @db.Date
+  tipo      String
+
+  @@index([empresaId, fecha])
+  @@map("holidays")
+}
+
+model ShiftTemplate {
+  id          String   @id @default(uuid())
+  empresaId   String
+  empresa     Company  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  nombre      String
+  horaEntrada String
+  horaSalida  String
+
+  employees   Employee[]
+  assignments ShiftAssignment[]
+
+  @@index([empresaId])
+  @@map("shift_templates")
+}
+
+model ShiftAssignment {
+  id          String    @id @default(uuid())
+  empresaId   String
+  empresa     Company   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shiftId     String
+  shift       ShiftTemplate @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  fechaInicio DateTime  @db.Date
+  fechaFin    DateTime? @db.Date
+  diasSemana  String[]  @default([])
+  esFijo      Boolean   @default(false)
+
+  @@index([empresaId])
+  @@index([employeeId])
+  @@map("shift_assignments")
+}

@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { deleteShiftTemplate, updateShiftTemplate } from "@/lib/notion";
+import { assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
 import { getEmpresaId } from "@/lib/session";
 import type { ShiftTemplateInput } from "@/lib/types";
 
@@ -11,6 +12,7 @@ export async function PATCH(
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const { id } = await params;
     const data = (await req.json()) as Omit<ShiftTemplateInput, "empresaId">;
     if (!data.nombre?.trim() || !data.horaEntrada || !data.horaSalida) {
@@ -24,7 +26,7 @@ export async function PATCH(
     return NextResponse.json(shift);
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo actualizar el turno" }, { status: 500 });
+    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo actualizar el turno" }, { status: 500 });
   }
 }
 
@@ -35,12 +37,13 @@ export async function DELETE(
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const { id } = await params;
     await deleteShiftTemplate(id, empresaId);
     revalidatePath("/turnos");
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo eliminar el turno" }, { status: 500 });
+    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo eliminar el turno" }, { status: 500 });
   }
 }

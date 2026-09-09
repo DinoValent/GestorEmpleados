@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createHolidaysBulk } from "@/lib/notion";
+import { assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
 import { getEmpresaId } from "@/lib/session";
 import type { HolidayInput } from "@/lib/types";
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const { year } = (await req.json()) as { year?: number };
     const targetYear = year || new Date().getFullYear();
 
@@ -42,6 +44,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, total: items.length, creados: created });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo importar los feriados" }, { status: 500 });
+    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo importar los feriados" }, { status: 500 });
   }
 }

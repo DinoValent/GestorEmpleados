@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "./Logo";
 import SettingsMenu from "./SettingsMenu";
+import ThemeToggle from "./ThemeToggle";
 
 const NAV_LINKS = [
   { href: "/", label: "Inicio" },
@@ -32,14 +33,18 @@ export default function NavBar() {
   // Una sesión vieja puede tener email/rol pero no empresaId (token de antes de
   // multi-empresa). El cliente la ve "autenticada" aunque el servidor la trate
   // como inválida — eso deja la navbar mostrando links que no funcionan. Acá la
-  // detectamos y forzamos un logout automático para que se pueda reloguear.
-  const staleSession = status === "authenticated" && !session?.user?.empresaId;
+  // detectamos y forzamos un logout automático para que se pueda reloguear. El
+  // SuperAdmin es la única sesión legítima sin empresaId, así que se excluye.
+  const staleSession =
+    status === "authenticated" &&
+    !session?.user?.empresaId &&
+    session?.user?.rol !== "SuperAdmin";
 
   useEffect(() => {
     if (staleSession) signOut({ callbackUrl: "/login" });
   }, [staleSession]);
 
-  if (pathname === "/login") return null;
+  if (pathname === "/login" || pathname.startsWith("/superadmin")) return null;
 
   const authenticated = status === "authenticated" && !staleSession;
   const isAdmin = session?.user?.rol === "Admin";
@@ -58,9 +63,37 @@ export default function NavBar() {
         </Link>
 
         {!authenticated && (status === "unauthenticated" || staleSession) && (
-          <Link href="/login" className="btn-secondary">
-            Iniciar sesión
-          </Link>
+          <div className="flex items-center gap-4 sm:gap-6">
+            {pathname === "/" && (
+              <nav className="hidden items-center gap-5 text-sm font-medium sm:flex">
+                <a
+                  href="#funciones"
+                  className="transition-colors"
+                  style={{ color: "var(--foreground-secondary)" }}
+                >
+                  Funciones
+                </a>
+                <a
+                  href="#precios"
+                  className="transition-colors"
+                  style={{ color: "var(--foreground-secondary)" }}
+                >
+                  Precios
+                </a>
+                <a
+                  href="#faq"
+                  className="transition-colors"
+                  style={{ color: "var(--foreground-secondary)" }}
+                >
+                  FAQ
+                </a>
+              </nav>
+            )}
+            <ThemeToggle compact />
+            <Link href="/login" className="btn-secondary">
+              Iniciar sesión
+            </Link>
+          </div>
         )}
 
         {authenticated && (

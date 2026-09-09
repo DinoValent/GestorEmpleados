@@ -18,6 +18,7 @@ const KNOWN_ROUTES = new Set([
   "/reportes",
   "/usuarios",
   "/feriados",
+  "/superadmin",
 ]);
 
 export const authConfig: NextAuthConfig = {
@@ -28,13 +29,15 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request }) {
       const { nextUrl } = request;
+      const rol = auth?.user?.rol;
+      const isSuperAdmin = rol === "SuperAdmin";
       // Una sesión vieja (de antes de multi-empresa) puede traer un token sin
       // empresaId. Tratarla como "no logueada" evita que quede en un estado
       // roto a medias — el cliente cree que hay sesión, pero el servidor no
       // tiene con qué empresa trabajar. Así, cualquier ruta protegida la manda
-      // directo a /login para reautenticarse y obtener un token nuevo.
-      const isLoggedIn = !!auth?.user?.empresaId;
-      const rol = auth?.user?.rol;
+      // directo a /login para reautenticarse y obtener un token nuevo. El
+      // SuperAdmin es la única excepción: no pertenece a ninguna empresa.
+      const isLoggedIn = !!auth?.user && (isSuperAdmin || !!auth.user.empresaId);
       const path = nextUrl.pathname;
 
       if (path.startsWith("/api/auth")) return true;
@@ -59,17 +62,18 @@ export const authConfig: NextAuthConfig = {
 
       if (path === "/login") {
         if (isLoggedIn) {
-          return Response.redirect(
-            new URL(rol === "Admin" ? "/" : "/mi-fichaje", nextUrl)
-          );
+          const dest = isSuperAdmin ? "/superadmin" : rol === "Admin" ? "/" : "/mi-fichaje";
+          return Response.redirect(new URL(dest, nextUrl));
         }
         return true;
       }
 
       // "/" es la landing pública para quien no inició sesión; los ya logueados
-      // ven su panel normal (Admin) o son mandados a su propia pantalla (Empleado).
+      // ven su panel normal (Admin), son mandados a su propia pantalla (Empleado),
+      // o al panel de gestión de clientes (SuperAdmin).
       if (path === "/") {
         if (!isLoggedIn) return true;
+        if (isSuperAdmin) return Response.redirect(new URL("/superadmin", nextUrl));
         if (rol !== "Admin") {
           return Response.redirect(new URL("/mi-fichaje", nextUrl));
         }
@@ -80,6 +84,14 @@ export const authConfig: NextAuthConfig = {
       if (path === "/planes") return true;
 
       if (!isLoggedIn) return false;
+
+      // El panel de SuperAdmin es un árbol completamente aparte del de una
+      // empresa (tenant): solo el SuperAdmin entra ahí, y el SuperAdmin no
+      // usa ninguna otra ruta de la app.
+      if (path.startsWith("/superadmin") || path.startsWith("/api/superadmin")) {
+        return isSuperAdmin ? true : Response.redirect(new URL("/", nextUrl));
+      }
+      if (isSuperAdmin) return Response.redirect(new URL("/superadmin", nextUrl));
 
       if (path === "/mi-fichaje" || path.startsWith("/api/mi-fichaje")) {
         return true;
@@ -103,7 +115,7 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.sub as string;
         session.user.rol = token.rol as Rol;
         session.user.employeeId = (token.employeeId as string | null) ?? null;
-        session.user.empresaId = token.empresaId as string;
+        session.user.empresaId = (token.empresaId as string | null) ?? null;
       }
       return session;
     },

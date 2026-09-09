@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getEmployee, getShiftTemplate, updateEmployee } from "@/lib/notion";
+import { assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
 import { getEmpresaId } from "@/lib/session";
 import type { EmployeeInput } from "@/lib/types";
 
@@ -27,6 +28,7 @@ export async function PATCH(
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
+    await assertEmpresaActiva(empresaId);
     const { id } = await params;
     const data = (await req.json()) as Omit<EmployeeInput, "empresaId">;
     if (!data.nombre?.trim()) {
@@ -42,6 +44,6 @@ export async function PATCH(
     return NextResponse.json(employee);
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "No se pudo actualizar el empleado" }, { status: 500 });
+    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo actualizar el empleado" }, { status: 500 });
   }
 }

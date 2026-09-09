@@ -3,10 +3,11 @@ import { getEmpresaId } from "@/lib/session";
 
 const PLANES = [
   {
-    nombre: "Básico",
+    nombre: "Inicial",
     empleados: "Hasta 4 empleados",
     admins: "1 administrador",
-    precio: "$15.000",
+    precioOriginal: "$90.000",
+    precio: "$50.000",
     destacado: false,
     detalle: [
       "Fichaje con ubicación",
@@ -17,13 +18,14 @@ const PLANES = [
     ],
   },
   {
-    nombre: "Pro",
+    nombre: "Premium",
     empleados: "Hasta 10 empleados",
     admins: "3 administradores",
-    precio: "$30.000",
+    precioOriginal: "$130.000",
+    precio: "$85.000",
     destacado: true,
     detalle: [
-      "Todo lo del plan Básico",
+      "Todo lo del plan Inicial",
       "Turnos rotativos",
       "Varios administradores con su propio acceso",
       "Envío de resúmenes por email",
@@ -58,18 +60,24 @@ export default async function PlanesPage() {
             key={p.nombre}
             className={`card ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}
           >
-            {p.destacado && (
-              <span className="badge mb-3 bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
-                Más elegido
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {p.destacado && (
+                <span className="badge bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
+                  Más elegido
+                </span>
+              )}
+              <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                Descuento promocional
               </span>
-            )}
+            </div>
             <h2 className="text-lg font-semibold">{p.nombre}</h2>
             <p className="mt-1 text-sm text-slate-500">
               {p.empleados} · {p.admins}
             </p>
-            <p className="mt-4 text-3xl font-semibold">
-              {p.precio}
-              <span className="text-sm font-normal text-slate-400"> /mes</span>
+            <p className="mt-4 flex flex-wrap items-baseline gap-2">
+              <span className="text-lg text-slate-400 line-through">{p.precioOriginal}</span>
+              <span className="text-3xl font-semibold">{p.precio}</span>
+              <span className="text-sm font-normal text-slate-400">/mes</span>
             </p>
             <ul className="mt-5 space-y-2 text-sm text-slate-600">
               {p.detalle.map((d) => (
