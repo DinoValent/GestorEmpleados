@@ -2,18 +2,36 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Company, Estado } from "@/lib/types";
+import type { Company, Estado, Plan } from "@/lib/types";
 
-export default function PlanForm({ empresa }: { empresa: Company }) {
+const A_MEDIDA = "a-medida";
+
+export default function PlanForm({ empresa, planes }: { empresa: Company; planes: Plan[] }) {
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>(empresa.estado);
-  const [plan, setPlan] = useState(empresa.plan ?? "");
+  const [planId, setPlanId] = useState(empresa.planId ?? A_MEDIDA);
+  const [planLabel, setPlanLabel] = useState(empresa.planLabel ?? empresa.planNombre ?? "A medida");
   const [maxEmpleados, setMaxEmpleados] = useState(empresa.maxEmpleados);
   const [maxAdmins, setMaxAdmins] = useState(empresa.maxAdmins);
+  const [diasGracia, setDiasGracia] = useState(empresa.diasGracia);
   const [fechaVencimiento, setFechaVencimiento] = useState(empresa.fechaVencimiento ?? "");
+  const [direccion, setDireccion] = useState(empresa.direccion ?? "");
+  const [color, setColor] = useState(empresa.color ?? "#1c02ab");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  const planSeleccionado = planes.find((p) => p.id === planId);
+
+  function handlePlanChange(id: string) {
+    setPlanId(id);
+    const plan = planes.find((p) => p.id === id);
+    if (plan) {
+      setMaxEmpleados(plan.maxEmpleados);
+      setMaxAdmins(plan.maxAdmins);
+      setDiasGracia(plan.diasGracia);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,10 +44,14 @@ export default function PlanForm({ empresa }: { empresa: Company }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           estado,
-          plan: plan || null,
+          planId: planSeleccionado ? planSeleccionado.id : null,
+          planLabel: planSeleccionado ? null : planLabel || "A medida",
           maxEmpleados,
           maxAdmins,
+          diasGracia,
           fechaVencimiento: fechaVencimiento || null,
+          direccion: direccion || null,
+          color: color || null,
         }),
       });
       if (!res.ok) {
@@ -64,13 +86,23 @@ export default function PlanForm({ empresa }: { empresa: Company }) {
           </select>
         </div>
         <div>
-          <label className="label">Plan (etiqueta)</label>
-          <input
-            className="input"
-            placeholder="Inicial, Premium, A medida..."
-            value={plan}
-            onChange={(e) => setPlan(e.target.value)}
-          />
+          <label className="label">Plan</label>
+          <select className="input" value={planId} onChange={(e) => handlePlanChange(e.target.value)}>
+            {planes.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre} — {p.precio}/mes
+              </option>
+            ))}
+            <option value={A_MEDIDA}>A medida (personalizado)</option>
+          </select>
+          {!planSeleccionado && (
+            <input
+              className="input mt-2"
+              placeholder="Etiqueta del plan"
+              value={planLabel}
+              onChange={(e) => setPlanLabel(e.target.value)}
+            />
+          )}
         </div>
         <div>
           <label className="label">Máximo de empleados</label>
@@ -92,6 +124,43 @@ export default function PlanForm({ empresa }: { empresa: Company }) {
             onChange={(e) => setMaxAdmins(Number(e.target.value))}
           />
         </div>
+        {empresa.grupoId && (
+          <div>
+            <label className="label">Dirección de la sucursal</label>
+            <input
+              className="input"
+              placeholder="Ej. Av. Siempreviva 742"
+              value={direccion}
+              onChange={(e) => setDireccion(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-400">Esta empresa es una sucursal de un grupo corporativo.</p>
+          </div>
+        )}
+        {empresa.grupoId && (
+          <div>
+            <label className="label">Color de la sucursal</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                className="h-10 w-10 shrink-0 cursor-pointer rounded-lg border p-1"
+                style={{ borderColor: "var(--border)" }}
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
+              <span className="text-sm text-slate-500">{color}</span>
+            </div>
+          </div>
+        )}
+        <div>
+          <label className="label">Días de gracia</label>
+          <input
+            type="number"
+            min={5}
+            className="input"
+            value={diasGracia}
+            onChange={(e) => setDiasGracia(Number(e.target.value))}
+          />
+        </div>
         <div>
           <label className="label">Vencimiento de la suscripción</label>
           <input
@@ -101,7 +170,7 @@ export default function PlanForm({ empresa }: { empresa: Company }) {
             onChange={(e) => setFechaVencimiento(e.target.value)}
           />
           <p className="mt-1 text-xs text-slate-400">
-            Vencida la fecha, la empresa pasa a modo solo lectura hasta que la renueves.
+            Vencida la fecha (más los días de gracia), la empresa pasa a modo solo lectura.
           </p>
         </div>
       </div>

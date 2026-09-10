@@ -1,17 +1,54 @@
 export type Estado = "Activo" | "Inactivo";
 
+export interface Plan {
+  id: string;
+  nombre: string;
+  precio: string;
+  precioOriginal: string | null;
+  maxEmpleados: number;
+  maxAdmins: number;
+  diasGracia: number;
+  detalle: string[];
+  destacado: boolean;
+  /** Habilita cargar varias sucursales al crear la empresa. */
+  esCorporativo: boolean;
+  activo: boolean;
+  orden: number;
+}
+
+export type PlanInput = Omit<Plan, "id">;
+
 export interface Company {
   id: string;
   nombre: string;
   estado: Estado;
-  plan: string | null;
+  planId: string | null;
+  /** Nombre del plan a mostrar: el del catálogo si hay uno asignado, si no la etiqueta libre. */
+  planNombre: string | null;
+  planLabel: string | null;
   maxEmpleados: number;
   maxAdmins: number;
+  diasGracia: number;
   /** ISO date (yyyy-mm-dd), o null si no tiene vencimiento asignado. */
   fechaVencimiento: string | null;
+  /** Grupo corporativo al que pertenece esta sucursal, o null si es una empresa suelta. */
+  grupoId: string | null;
+  /** Dirección/etiqueta de la sucursal dentro del grupo. */
+  direccion: string | null;
+  /** Color hex para identificar la sucursal en el selector. */
+  color: string | null;
 }
 
-export type CompanyInput = Omit<Company, "id">;
+export type CompanyInput = Omit<Company, "id" | "planNombre">;
+
+/** Una sucursal dentro del selector — el mismo usuario puede ver el dashboard de cualquiera. */
+export interface Sucursal {
+  id: string;
+  nombre: string;
+  direccion: string | null;
+  color: string | null;
+  activa: boolean;
+}
 
 export interface Employee {
   id: string;
@@ -47,6 +84,9 @@ export interface AttendanceRecord {
   latitud: number | null;
   longitud: number | null;
   precision: number | null;
+  latitudSalida: number | null;
+  longitudSalida: number | null;
+  precisionSalida: number | null;
 }
 
 export type Rol = "Admin" | "Empleado" | "SuperAdmin";

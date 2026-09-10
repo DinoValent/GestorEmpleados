@@ -1,41 +1,10 @@
 import Link from "next/link";
+import ContactLinks from "@/components/ContactLinks";
 import { getEmpresaId } from "@/lib/session";
-
-const PLANES = [
-  {
-    nombre: "Inicial",
-    empleados: "Hasta 4 empleados",
-    admins: "1 administrador",
-    precioOriginal: "$90.000",
-    precio: "$50.000",
-    destacado: false,
-    detalle: [
-      "Fichaje con ubicación",
-      "Cálculo de horas extra y llegadas tarde",
-      "Calendario de asistencia",
-      "Feriados argentinos automáticos",
-      "Reportes y resumen de pagos",
-    ],
-  },
-  {
-    nombre: "Premium",
-    empleados: "Hasta 10 empleados",
-    admins: "3 administradores",
-    precioOriginal: "$130.000",
-    precio: "$85.000",
-    destacado: true,
-    detalle: [
-      "Todo lo del plan Inicial",
-      "Turnos rotativos",
-      "Varios administradores con su propio acceso",
-      "Envío de resúmenes por email",
-      "Soporte prioritario",
-    ],
-  },
-];
+import { listPlanesPublicos } from "@/lib/notion";
 
 export default async function PlanesPage() {
-  const empresaId = await getEmpresaId();
+  const [empresaId, PLANES] = await Promise.all([getEmpresaId(), listPlanesPublicos()]);
 
   return (
     <div className="space-y-8">
@@ -57,7 +26,7 @@ export default async function PlanesPage() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         {PLANES.map((p) => (
           <div
-            key={p.nombre}
+            key={p.id}
             className={`card ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}
           >
             <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -66,16 +35,20 @@ export default async function PlanesPage() {
                   Más elegido
                 </span>
               )}
-              <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                Descuento promocional
-              </span>
+              {p.precioOriginal && (
+                <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                  Descuento promocional
+                </span>
+              )}
             </div>
             <h2 className="text-lg font-semibold">{p.nombre}</h2>
             <p className="mt-1 text-sm text-slate-500">
-              {p.empleados} · {p.admins}
+              Hasta {p.maxEmpleados} empleados · {p.maxAdmins} administrador{p.maxAdmins === 1 ? "" : "es"}
             </p>
             <p className="mt-4 flex flex-wrap items-baseline gap-2">
-              <span className="text-lg text-slate-400 line-through">{p.precioOriginal}</span>
+              {p.precioOriginal && (
+                <span className="text-lg text-slate-400 line-through">{p.precioOriginal}</span>
+              )}
               <span className="text-3xl font-semibold">{p.precio}</span>
               <span className="text-sm font-normal text-slate-400">/mes</span>
             </p>
@@ -111,6 +84,12 @@ export default async function PlanesPage() {
           una nueva app para controlar el inventario de tu negocio — y no es lo único que viene.
           Si necesitás algo específico, contanos y lo construimos.
         </p>
+      </div>
+
+      <div className="text-center">
+        <h2 className="text-xl font-semibold tracking-tight">¿Tenés dudas o querés una demo?</h2>
+        <p className="mt-1 text-sm text-slate-500">Escribinos y te ayudamos a elegir el plan justo para tu equipo.</p>
+        <ContactLinks className="mt-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm" />
       </div>
 
       {!empresaId && (

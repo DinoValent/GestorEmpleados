@@ -23,19 +23,43 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   try {
     const { id } = await params;
-    const { estado, plan, maxEmpleados, maxAdmins, fechaVencimiento } = (await req.json()) as {
-      estado?: Estado;
-      plan?: string | null;
-      maxEmpleados?: number;
-      maxAdmins?: number;
-      fechaVencimiento?: string | null;
-    };
-    const empresa = await updateCompanyPlan(id, {
+    const {
       estado,
-      plan,
+      planId,
+      planLabel,
       maxEmpleados,
       maxAdmins,
+      diasGracia,
       fechaVencimiento,
+      direccion,
+      color,
+    } = (await req.json()) as {
+      estado?: Estado;
+      planId?: string | null;
+      planLabel?: string | null;
+      maxEmpleados?: number;
+      maxAdmins?: number;
+      diasGracia?: number;
+      fechaVencimiento?: string | null;
+      direccion?: string | null;
+      color?: string | null;
+    };
+    if (diasGracia !== undefined && diasGracia < 5) {
+      return NextResponse.json(
+        { error: "Los días de gracia no pueden ser menos de 5" },
+        { status: 400 }
+      );
+    }
+    const empresa = await updateCompanyPlan(id, {
+      estado,
+      planId,
+      planLabel,
+      maxEmpleados,
+      maxAdmins,
+      diasGracia,
+      fechaVencimiento,
+      direccion,
+      color,
     });
     return NextResponse.json(empresa);
   } catch (err) {

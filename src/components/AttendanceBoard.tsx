@@ -243,6 +243,7 @@ export default function AttendanceBoard({
                 <th>Entrada</th>
                 <th>Ubicación</th>
                 <th>Salida</th>
+                <th>Ubicación salida</th>
                 <th>Hs. trabajadas</th>
                 <th>Hs. extra</th>
                 <th>Llegada tarde</th>
@@ -253,7 +254,7 @@ export default function AttendanceBoard({
             <tbody>
               {records.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-400">
+                  <td colSpan={10} className="py-8 text-center text-slate-400">
                     No hay fichajes {isToday ? "hoy" : "en esta fecha"}.
                   </td>
                 </tr>
@@ -310,6 +311,25 @@ export default function AttendanceBoard({
                           }))
                         }
                       />
+                    </td>
+                    <td>
+                      {r.latitudSalida !== null && r.longitudSalida !== null ? (
+                        <a
+                          href={`https://www.google.com/maps?q=${r.latitudSalida},${r.longitudSalida}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="whitespace-nowrap text-xs font-medium text-indigo-600 hover:underline"
+                        >
+                          📍 Ver mapa
+                          {r.precisionSalida !== null && (
+                            <span className="ml-1 font-normal text-slate-400">
+                              (±{r.precisionSalida} m)
+                            </span>
+                          )}
+                        </a>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
                     </td>
                     <td>{r.horasTrabajadas ?? "—"}</td>
                     <td>{r.horasExtra ?? "—"}</td>

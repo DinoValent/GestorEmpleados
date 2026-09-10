@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "./Logo";
 import SettingsMenu from "./SettingsMenu";
+import SucursalSwitcher from "./SucursalSwitcher";
 import ThemeToggle from "./ThemeToggle";
 
 const NAV_LINKS = [
@@ -124,6 +125,7 @@ export default function NavBar() {
                   })}
                 </nav>
               )}
+              {isAdmin && <SucursalSwitcher />}
               <div className="ml-1 border-l pl-3" style={{ borderColor: "var(--border)" }}>
                 <SettingsMenu email={session?.user?.email} />
               </div>
@@ -159,6 +161,11 @@ export default function NavBar() {
           className="animate-page border-t px-4 py-3 lg:hidden"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
+          {isAdmin && (
+            <div className="mb-2">
+              <SucursalSwitcher />
+            </div>
+          )}
           {isAdmin && (
             <nav className="flex flex-col gap-1">
               {NAV_LINKS.map((link) => {

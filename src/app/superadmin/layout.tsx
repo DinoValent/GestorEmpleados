@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import SignOutButton from "@/components/SignOutButton";
+import SuperAdminNav from "@/components/superadmin/SuperAdminNav";
 import { auth } from "@/lib/auth";
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
             </span>
           </Link>
           <div className="flex items-center gap-4">
+            <SuperAdminNav />
             <span className="hidden text-sm sm:inline" style={{ color: "var(--foreground-secondary)" }}>
               {session?.user?.email}
             </span>

@@ -54,17 +54,17 @@ export default function CheckInWidget({
     setLocationNote(null);
     setLocationError(null);
     try {
-      let body: Record<string, unknown> = {};
-      if (kind === "checkin") {
-        const coords = await getLocation();
-        if (!coords) {
-          setLocationError(LOCATION_BLOCKED_MESSAGE);
-          return;
-        }
-        body = coords;
-        setLocationNote(locationMessage(coords));
-      } else if (openRecord) {
-        body = { recordId: openRecord.id };
+      const coords = await getLocation();
+      if (!coords) {
+        setLocationError(LOCATION_BLOCKED_MESSAGE);
+        return;
+      }
+      setLocationNote(locationMessage(coords));
+
+      let body: Record<string, unknown> = coords;
+      if (kind === "checkout") {
+        if (!openRecord) return;
+        body = { ...coords, recordId: openRecord.id };
       }
       const res = await fetch(`/api/mi-fichaje/${kind}`, {
         method: "POST",
@@ -73,11 +73,7 @@ export default function CheckInWidget({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        if (kind === "checkin") {
-          setLocationError(data.error || LOCATION_BLOCKED_MESSAGE);
-        } else {
-          alert(data.error || "No se pudo registrar el fichaje");
-        }
+        setLocationError(data.error || LOCATION_BLOCKED_MESSAGE);
         return;
       }
       router.refresh();

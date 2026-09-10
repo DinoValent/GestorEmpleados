@@ -1,7 +1,10 @@
 import Link from "next/link";
 import NuevaEmpresaForm from "@/components/superadmin/NuevaEmpresaForm";
+import { listPlanes } from "@/lib/notion";
 
-export default function NuevaEmpresaPage() {
+export default async function NuevaEmpresaPage() {
+  const planes = await listPlanes();
+
   return (
     <div className="animate-page space-y-6">
       <div>
@@ -14,7 +17,7 @@ export default function NuevaEmpresaPage() {
         </p>
       </div>
 
-      <NuevaEmpresaForm />
+      <NuevaEmpresaForm planes={planes} />
     </div>
   );
 }

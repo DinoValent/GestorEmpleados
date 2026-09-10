@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { countActiveEmployees, countAdmins, getCompany, todayISO } from "./notion";
+import { computeVencimiento, countActiveEmployees, countAdmins, getCompany } from "./notion";
 
 /** Error de negocio (límite de plan o suscripción vencida): se muestra tal cual al usuario. */
 export class PlanLimitError extends Error {
@@ -16,7 +16,8 @@ export async function assertEmpresaActiva(empresaId: string): Promise<void> {
   if (empresa.estado !== "Activo") {
     throw new PlanLimitError("Tu empresa está desactivada. Contactá al administrador de Puntual.");
   }
-  if (empresa.fechaVencimiento && empresa.fechaVencimiento < todayISO()) {
+  const { vencida } = computeVencimiento(empresa.fechaVencimiento, empresa.diasGracia);
+  if (vencida) {
     throw new PlanLimitError(
       "La suscripción de tu empresa venció. Contactá al administrador de Puntual para renovarla."
     );

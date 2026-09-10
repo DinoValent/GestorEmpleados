@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import PlanForm from "@/components/superadmin/PlanForm";
 import UsuarioForm from "@/components/UsuarioForm";
 import UsuariosTable from "@/components/UsuariosTable";
-import { getCompanyWithStats, listEmployees, listUsers } from "@/lib/notion";
+import { getCompanyWithStats, listEmployees, listPlanes, listUsers } from "@/lib/notion";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,11 @@ export default async function EmpresaDetallePage({
     notFound();
   }
 
-  const [employees, users] = await Promise.all([listEmployees(id), listUsers(id)]);
+  const [employees, users, planes] = await Promise.all([
+    listEmployees(id),
+    listUsers(id),
+    listPlanes(),
+  ]);
   const activos = employees
     .filter((e) => e.estado === "Activo")
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -37,6 +41,10 @@ export default async function EmpresaDetallePage({
           <h1 className="text-2xl font-semibold tracking-tight">{empresa.nombre}</h1>
           {empresa.vencida ? (
             <span className="badge-red">Suscripción vencida</span>
+          ) : empresa.pagoVencido ? (
+            <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+              Pago vencido (en gracia)
+            </span>
           ) : (
             <span className={empresa.estado === "Activo" ? "badge-green" : "badge-gray"}>
               {empresa.estado}
@@ -49,7 +57,7 @@ export default async function EmpresaDetallePage({
         </p>
       </div>
 
-      <PlanForm empresa={empresa} />
+      <PlanForm empresa={empresa} planes={planes} />
 
       <div>
         <h2 className="mb-3 font-semibold">Usuarios</h2>

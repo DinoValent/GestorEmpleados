@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import PreferencesCard from "@/components/PreferencesCard";
 import SignOutButton from "@/components/SignOutButton";
 import { auth } from "@/lib/auth";
-import { getCompany, listEmployees, listUsers } from "@/lib/notion";
+import { computeVencimiento, getCompany, listEmployees, listUsers, todayISO } from "@/lib/notion";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +28,18 @@ export default async function PerfilPage() {
   const empleadosActivos = employees.filter((e) => e.estado === "Activo").length;
   const admins = users.filter((u) => u.rol === "Admin").length;
   const initials = initialsOf(session.user.email ?? "?");
+
+  const hoy = todayISO();
+  const { pagoVencido, vencida } = computeVencimiento(empresa.fechaVencimiento, empresa.diasGracia);
+  const diasParaVencer = empresa.fechaVencimiento
+    ? Math.ceil(
+        (new Date(empresa.fechaVencimiento).getTime() - new Date(hoy).getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : null;
+  const diasDeGraciaRestantes =
+    pagoVencido && diasParaVencer !== null ? empresa.diasGracia + diasParaVencer : null;
+  const porVencer = !pagoVencido && diasParaVencer !== null && diasParaVencer <= 7;
 
   return (
     <div className="animate-page stagger max-w-3xl space-y-6">
@@ -118,6 +130,57 @@ export default async function PerfilPage() {
             <span className={empresa.estado === "Activo" ? "badge-green" : "badge-gray"}>
               {empresa.estado}
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Plan y suscripción */}
+      <div className="card space-y-4">
+        <h2 className="font-semibold">Plan y suscripción</h2>
+
+        {vencida && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+            Tu suscripción venció el {empresa.fechaVencimiento}. La empresa quedó en modo solo
+            lectura: se puede ver todo, pero no crear ni editar nada hasta renovarla. Contactá al
+            administrador de Puntual para renovar.
+          </p>
+        )}
+        {pagoVencido && !vencida && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+            Tu suscripción venció el {empresa.fechaVencimiento}, pero tenés{" "}
+            {diasDeGraciaRestantes} {diasDeGraciaRestantes === 1 ? "día" : "días"} más antes de
+            pasar a modo solo lectura. Contactá al administrador de Puntual para renovarla.
+          </p>
+        )}
+        {porVencer && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+            Tu suscripción vence el {empresa.fechaVencimiento} ({diasParaVencer}{" "}
+            {diasParaVencer === 1 ? "día" : "días"}). Contactá al administrador de Puntual para
+            renovarla y evitar interrupciones.
+          </p>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
+            <p className="label">Plan</p>
+            <p className="font-medium">{empresa.planNombre ?? "Sin asignar"}</p>
+          </div>
+          <div>
+            <p className="label">Límites</p>
+            <p className="font-medium">
+              {empleadosActivos}/{empresa.maxEmpleados >= 999999 ? "∞" : empresa.maxEmpleados}{" "}
+              empleados · {admins}/{empresa.maxAdmins >= 999999 ? "∞" : empresa.maxAdmins} admins
+            </p>
+          </div>
+          <div>
+            <p className="label">Vencimiento</p>
+            {empresa.fechaVencimiento ? (
+              <span className={vencida ? "badge-red" : porVencer || pagoVencido ? "badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" : "badge-green"}>
+                {empresa.fechaVencimiento}
+              </span>
+            ) : (
+              <span className="badge-gray">Sin vencimiento</span>
+            )}
           </div>
         </div>
       </div>

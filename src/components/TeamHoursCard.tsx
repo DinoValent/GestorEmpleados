@@ -1,18 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useLocalToggle } from "@/lib/useLocalToggle";
 import StackedHoursChart, { type HoursBar } from "./charts/StackedHoursChart";
 
 const STORAGE_KEY = "puntual-show-team-chart";
-
-function initialVisible(): boolean {
-  if (typeof window === "undefined") return true;
-  try {
-    return localStorage.getItem(STORAGE_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
 
 export default function TeamHoursCard({
   data,
@@ -23,16 +14,10 @@ export default function TeamHoursCard({
   label: string;
   totalHoras: number;
 }) {
-  const [visible, setVisible] = useState(initialVisible);
+  const [visible, setVisible] = useLocalToggle(STORAGE_KEY, true);
 
   function toggle() {
-    const next = !visible;
-    setVisible(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-    } catch {
-      // localStorage no disponible: el toggle igual funciona para esta sesión
-    }
+    setVisible(!visible);
   }
 
   return (

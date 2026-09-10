@@ -13,11 +13,14 @@ import type {
   Holiday,
   HolidayInput,
   HolidayType,
+  Plan,
+  PlanInput,
   Rol,
   ShiftAssignment,
   ShiftAssignmentInput,
   ShiftTemplate,
   ShiftTemplateInput,
+  Sucursal,
 } from "./types";
 import { nowHHMM, todayISO } from "./timezone";
 import { prisma } from "./prisma";
@@ -40,36 +43,154 @@ function toMinutes(hhmm: string): number | null {
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
+// ---------- planes (catálogo) ----------
+
+function mapPlan(row: {
+  id: string;
+  nombre: string;
+  precio: string;
+  precioOriginal: string | null;
+  maxEmpleados: number;
+  maxAdmins: number;
+  diasGracia: number;
+  detalle: string[];
+  destacado: boolean;
+  esCorporativo: boolean;
+  activo: boolean;
+  orden: number;
+}): Plan {
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    precio: row.precio,
+    precioOriginal: row.precioOriginal,
+    maxEmpleados: row.maxEmpleados,
+    maxAdmins: row.maxAdmins,
+    diasGracia: row.diasGracia,
+    detalle: row.detalle,
+    destacado: row.destacado,
+    esCorporativo: row.esCorporativo,
+    activo: row.activo,
+    orden: row.orden,
+  };
+}
+
+const MIN_DIAS_GRACIA = 5;
+
+/** Todos los planes, para el panel de SuperAdmin (incluye los que ya no se muestran públicamente). */
+export async function listPlanes(): Promise<Plan[]> {
+  const rows = await prisma.plan.findMany({ orderBy: [{ orden: "asc" }, { createdAt: "asc" }] });
+  return rows.map(mapPlan);
+}
+
+/** Solo los planes activos, para /planes y el landing. */
+export async function listPlanesPublicos(): Promise<Plan[]> {
+  const rows = await prisma.plan.findMany({
+    where: { activo: true },
+    orderBy: [{ orden: "asc" }, { createdAt: "asc" }],
+  });
+  return rows.map(mapPlan);
+}
+
+export async function getPlan(id: string): Promise<Plan> {
+  const row = await prisma.plan.findUniqueOrThrow({ where: { id } });
+  return mapPlan(row);
+}
+
+export async function createPlan(data: PlanInput): Promise<Plan> {
+  const row = await prisma.plan.create({
+    data: {
+      nombre: data.nombre,
+      precio: data.precio,
+      precioOriginal: data.precioOriginal || null,
+      maxEmpleados: data.maxEmpleados,
+      maxAdmins: data.maxAdmins,
+      diasGracia: Math.max(MIN_DIAS_GRACIA, data.diasGracia),
+      detalle: data.detalle,
+      destacado: data.destacado,
+      esCorporativo: data.esCorporativo,
+      activo: data.activo,
+      orden: data.orden,
+    },
+  });
+  return mapPlan(row);
+}
+
+export async function updatePlan(id: string, data: Partial<PlanInput>): Promise<Plan> {
+  const row = await prisma.plan.update({
+    where: { id },
+    data: {
+      ...(data.nombre !== undefined ? { nombre: data.nombre } : {}),
+      ...(data.precio !== undefined ? { precio: data.precio } : {}),
+      ...(data.precioOriginal !== undefined ? { precioOriginal: data.precioOriginal || null } : {}),
+      ...(data.maxEmpleados !== undefined ? { maxEmpleados: data.maxEmpleados } : {}),
+      ...(data.maxAdmins !== undefined ? { maxAdmins: data.maxAdmins } : {}),
+      ...(data.diasGracia !== undefined
+        ? { diasGracia: Math.max(MIN_DIAS_GRACIA, data.diasGracia) }
+        : {}),
+      ...(data.detalle !== undefined ? { detalle: data.detalle } : {}),
+      ...(data.destacado !== undefined ? { destacado: data.destacado } : {}),
+      ...(data.esCorporativo !== undefined ? { esCorporativo: data.esCorporativo } : {}),
+      ...(data.activo !== undefined ? { activo: data.activo } : {}),
+      ...(data.orden !== undefined ? { orden: data.orden } : {}),
+    },
+  });
+  return mapPlan(row);
+}
+
+/** Borrar un plan no afecta a las empresas que ya lo tenían: sus límites y días
+ * de gracia quedan copiados en la propia empresa (planId simplemente queda null). */
+export async function deletePlan(id: string): Promise<void> {
+  await prisma.plan.delete({ where: { id } });
+}
+
 // ---------- companies (empresas) ----------
+
+const companyInclude = { plan: { select: { nombre: true } } } as const;
 
 function mapCompany(row: {
   id: string;
   nombre: string;
   estado: string;
-  plan: string | null;
+  planId: string | null;
+  planLabel: string | null;
+  plan: { nombre: string } | null;
   maxEmpleados: number;
   maxAdmins: number;
+  diasGracia: number;
   fechaVencimiento: Date | null;
+  grupoId: string | null;
+  direccion: string | null;
+  color: string | null;
 }): Company {
   return {
     id: row.id,
     nombre: row.nombre,
     estado: row.estado as Estado,
-    plan: row.plan,
+    planId: row.planId,
+    planNombre: row.plan?.nombre ?? row.planLabel,
+    planLabel: row.planLabel,
     maxEmpleados: row.maxEmpleados,
     maxAdmins: row.maxAdmins,
+    diasGracia: row.diasGracia,
     fechaVencimiento: toISODate(row.fechaVencimiento),
+    grupoId: row.grupoId,
+    direccion: row.direccion,
+    color: row.color,
   };
 }
 
 /** Lista TODAS las empresas, sin filtrar — solo para altas de clientes y el cron multi-empresa. */
 export async function listCompanies(): Promise<Company[]> {
-  const rows = await prisma.company.findMany({ orderBy: { nombre: "asc" } });
+  const rows = await prisma.company.findMany({
+    orderBy: { nombre: "asc" },
+    include: companyInclude,
+  });
   return rows.map(mapCompany);
 }
 
 export async function getCompany(id: string): Promise<Company> {
-  const row = await prisma.company.findUniqueOrThrow({ where: { id } });
+  const row = await prisma.company.findUniqueOrThrow({ where: { id }, include: companyInclude });
   return mapCompany(row);
 }
 
@@ -78,83 +199,123 @@ export async function createCompany(data: CompanyInput): Promise<Company> {
     data: {
       nombre: data.nombre,
       estado: data.estado || "Activo",
-      plan: data.plan ?? null,
+      planId: data.planId ?? null,
+      planLabel: data.planLabel ?? null,
       maxEmpleados: data.maxEmpleados ?? 999999,
       maxAdmins: data.maxAdmins ?? 999999,
+      diasGracia: data.diasGracia ?? MIN_DIAS_GRACIA,
       fechaVencimiento: toDateOrNull(data.fechaVencimiento),
+      grupoId: data.grupoId ?? null,
+      direccion: data.direccion ?? null,
+      color: data.color ?? null,
     },
+    include: companyInclude,
   });
   return mapCompany(row);
+}
+
+/** Todas las sucursales del grupo al que pertenece `empresaId` (o solo ella
+ * misma, si no pertenece a ningún grupo), marcando cuál es la activa. */
+export async function listSucursales(empresaId: string, activaId: string): Promise<Sucursal[]> {
+  const home = await prisma.company.findUniqueOrThrow({
+    where: { id: empresaId },
+    select: { id: true, nombre: true, direccion: true, color: true, grupoId: true },
+  });
+  if (!home.grupoId) {
+    return [
+      { id: home.id, nombre: home.nombre, direccion: home.direccion, color: home.color, activa: true },
+    ];
+  }
+  const sucursales = await prisma.company.findMany({
+    where: { grupoId: home.grupoId },
+    select: { id: true, nombre: true, direccion: true, color: true },
+    orderBy: { nombre: "asc" },
+  });
+  return sucursales.map((s) => ({ ...s, activa: s.id === activaId }));
+}
+
+/** true si `candidatoId` es una sucursal del mismo grupo que `homeId` (o es la propia). */
+export async function esSucursalValida(homeId: string, candidatoId: string): Promise<boolean> {
+  if (homeId === candidatoId) return true;
+  const home = await prisma.company.findUnique({ where: { id: homeId }, select: { grupoId: true } });
+  if (!home?.grupoId) return false;
+  const candidato = await prisma.company.findUnique({
+    where: { id: candidatoId },
+    select: { grupoId: true },
+  });
+  return candidato?.grupoId === home.grupoId;
 }
 
 export interface CompanyWithStats extends Company {
   totalEmpleadosActivos: number;
   totalAdmins: number;
   totalUsuarios: number;
+  /** Ya pasó fechaVencimiento pero todavía está dentro de los días de gracia. */
+  pagoVencido: boolean;
+  /** Pasaron fechaVencimiento + diasGracia: la empresa ya está en modo solo lectura. */
   vencida: boolean;
 }
 
-function isVencida(fechaVencimiento: string | null): boolean {
-  return !!fechaVencimiento && fechaVencimiento < todayISO();
+export function computeVencimiento(fechaVencimiento: string | null, diasGracia: number) {
+  const pagoVencido = !!fechaVencimiento && fechaVencimiento < todayISO();
+  if (!pagoVencido) return { pagoVencido: false, vencida: false };
+  const limite = new Date(fechaVencimiento!);
+  limite.setDate(limite.getDate() + diasGracia);
+  const vencida = toISODate(limite)! < todayISO();
+  return { pagoVencido, vencida };
 }
 
-export async function listCompaniesWithStats(): Promise<CompanyWithStats[]> {
-  const companies = await listCompanies();
-  return Promise.all(
-    companies.map(async (c) => {
-      const [totalEmpleadosActivos, totalAdmins, totalUsuarios] = await Promise.all([
-        countActiveEmployees(c.id),
-        countAdmins(c.id),
-        prisma.appUser.count({ where: { empresaId: c.id } }),
-      ]);
-      return {
-        ...c,
-        totalEmpleadosActivos,
-        totalAdmins,
-        totalUsuarios,
-        vencida: isVencida(c.fechaVencimiento),
-      };
-    })
-  );
-}
-
-export async function getCompanyWithStats(id: string): Promise<CompanyWithStats> {
-  const c = await getCompany(id);
+async function withStats(c: Company): Promise<CompanyWithStats> {
   const [totalEmpleadosActivos, totalAdmins, totalUsuarios] = await Promise.all([
     countActiveEmployees(c.id),
     countAdmins(c.id),
     prisma.appUser.count({ where: { empresaId: c.id } }),
   ]);
-  return {
-    ...c,
-    totalEmpleadosActivos,
-    totalAdmins,
-    totalUsuarios,
-    vencida: isVencida(c.fechaVencimiento),
-  };
+  return { ...c, totalEmpleadosActivos, totalAdmins, totalUsuarios, ...computeVencimiento(c.fechaVencimiento, c.diasGracia) };
+}
+
+export async function listCompaniesWithStats(): Promise<CompanyWithStats[]> {
+  const companies = await listCompanies();
+  return Promise.all(companies.map(withStats));
+}
+
+export async function getCompanyWithStats(id: string): Promise<CompanyWithStats> {
+  const c = await getCompany(id);
+  return withStats(c);
 }
 
 export async function updateCompanyPlan(
   id: string,
   data: {
     estado?: Estado;
-    plan?: string | null;
+    planId?: string | null;
+    planLabel?: string | null;
     maxEmpleados?: number;
     maxAdmins?: number;
+    diasGracia?: number;
     fechaVencimiento?: string | null;
+    direccion?: string | null;
+    color?: string | null;
   }
 ): Promise<Company> {
   const row = await prisma.company.update({
     where: { id },
     data: {
       ...(data.estado !== undefined ? { estado: data.estado } : {}),
-      ...(data.plan !== undefined ? { plan: data.plan } : {}),
+      ...(data.planId !== undefined ? { planId: data.planId } : {}),
+      ...(data.planLabel !== undefined ? { planLabel: data.planLabel } : {}),
       ...(data.maxEmpleados !== undefined ? { maxEmpleados: data.maxEmpleados } : {}),
       ...(data.maxAdmins !== undefined ? { maxAdmins: data.maxAdmins } : {}),
+      ...(data.diasGracia !== undefined
+        ? { diasGracia: Math.max(MIN_DIAS_GRACIA, data.diasGracia) }
+        : {}),
       ...(data.fechaVencimiento !== undefined
         ? { fechaVencimiento: toDateOrNull(data.fechaVencimiento) }
         : {}),
+      ...(data.direccion !== undefined ? { direccion: data.direccion } : {}),
+      ...(data.color !== undefined ? { color: data.color } : {}),
     },
+    include: companyInclude,
   });
   return mapCompany(row);
 }
@@ -279,6 +440,9 @@ function mapAttendance(row: {
   latitud: number | null;
   longitud: number | null;
   precision: number | null;
+  latitudSalida: number | null;
+  longitudSalida: number | null;
+  precisionSalida: number | null;
 }): AttendanceRecord {
   return {
     id: row.id,
@@ -296,6 +460,9 @@ function mapAttendance(row: {
     latitud: row.latitud,
     longitud: row.longitud,
     precision: row.precision,
+    latitudSalida: row.latitudSalida,
+    longitudSalida: row.longitudSalida,
+    precisionSalida: row.precisionSalida,
   };
 }
 
@@ -434,7 +601,11 @@ function computeDerived(
   return { llegadaTarde, minutosTardanza, horasTrabajadas, horasExtra };
 }
 
-export async function checkOut(empresaId: string, recordId: string): Promise<AttendanceRecord> {
+export async function checkOut(
+  empresaId: string,
+  recordId: string,
+  coords?: { lat: number; lon: number; accuracy?: number },
+): Promise<AttendanceRecord> {
   const record = await getAttendanceRecord(recordId, empresaId);
   const employee = await getEmployee(record.employeeId, empresaId);
   const horaSalida = nowHHMM();
@@ -452,6 +623,9 @@ export async function checkOut(empresaId: string, recordId: string): Promise<Att
       horaSalida,
       horasTrabajadas: derived.horasTrabajadas,
       horasExtra: derived.horasExtra,
+      latitudSalida: coords?.lat ?? null,
+      longitudSalida: coords?.lon ?? null,
+      precisionSalida: coords?.accuracy ?? null,
     },
   });
   return mapAttendance(row);

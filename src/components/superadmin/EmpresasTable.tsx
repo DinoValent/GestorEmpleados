@@ -26,17 +26,35 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
           )}
           {empresas.map((e) => (
             <tr key={e.id}>
-              <td className="font-medium">{e.nombre}</td>
+              <td className="font-medium">
+                {e.color && (
+                  <span
+                    className="mr-1.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full align-middle"
+                    style={{ background: e.color }}
+                  />
+                )}
+                {e.nombre}
+                {e.grupoId && (
+                  <span className="badge bg-purple-100 text-purple-800 ml-2 dark:bg-purple-500/15 dark:text-purple-300">
+                    Sucursal
+                  </span>
+                )}
+                {e.direccion && <p className="text-xs font-normal text-slate-400">{e.direccion}</p>}
+              </td>
               <td>
                 {e.vencida ? (
                   <span className="badge-red">Vencida</span>
+                ) : e.pagoVencido ? (
+                  <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                    En gracia
+                  </span>
                 ) : (
                   <span className={e.estado === "Activo" ? "badge-green" : "badge-gray"}>
                     {e.estado}
                   </span>
                 )}
               </td>
-              <td>{e.plan ?? "—"}</td>
+              <td>{e.planNombre ?? "—"}</td>
               <td>
                 {e.totalEmpleadosActivos} / {e.maxEmpleados >= 999999 ? "∞" : e.maxEmpleados}
               </td>

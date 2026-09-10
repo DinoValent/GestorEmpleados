@@ -24,20 +24,27 @@ export async function POST(req: NextRequest) {
   try {
     const {
       nombre,
-      plan,
+      planId,
+      planLabel,
       maxEmpleados,
       maxAdmins,
+      diasGracia,
       fechaVencimiento,
       adminEmail,
       adminPassword,
+      sucursales,
     } = (await req.json()) as {
       nombre?: string;
-      plan?: string | null;
+      planId?: string | null;
+      planLabel?: string | null;
       maxEmpleados?: number;
       maxAdmins?: number;
+      diasGracia?: number;
       fechaVencimiento?: string | null;
       adminEmail?: string;
       adminPassword?: string;
+      /** Si viene con al menos 1 elemento, se crea un grupo corporativo con estas sucursales. */
+      sucursales?: { nombre?: string; direccion?: string | null; color?: string | null }[];
     };
 
     if (!nombre?.trim()) {
@@ -55,6 +62,12 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (sucursales && sucursales.some((s) => !s.nombre?.trim())) {
+      return NextResponse.json(
+        { error: "Todas las sucursales necesitan un nombre" },
+        { status: 400 }
+      );
+    }
 
     const existing = await prisma.appUser.findUnique({
       where: { email: adminEmail.toLowerCase() },
@@ -64,25 +77,42 @@ export async function POST(req: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(adminPassword, 10);
+    const companyData = {
+      estado: "Activo",
+      planId: planId || null,
+      planLabel: planId ? null : planLabel || null,
+      maxEmpleados: maxEmpleados ?? 999999,
+      maxAdmins: maxAdmins ?? 999999,
+      diasGracia: Math.max(5, diasGracia ?? 5),
+      fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
+    };
 
     const result = await prisma.$transaction(async (tx) => {
-      const company = await tx.company.create({
-        data: {
-          nombre,
-          estado: "Activo",
-          plan: plan ?? null,
-          maxEmpleados: maxEmpleados ?? 999999,
-          maxAdmins: maxAdmins ?? 999999,
-          fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
-        },
-      });
+      if (sucursales && sucursales.length > 0) {
+        const grupo = await tx.empresaGrupo.create({ data: { nombre } });
+        const companies = [];
+        for (const s of sucursales) {
+          companies.push(
+            await tx.company.create({
+              data: {
+                ...companyData,
+                nombre: s.nombre!,
+                direccion: s.direccion || null,
+                color: s.color || null,
+                grupoId: grupo.id,
+              },
+            })
+          );
+        }
+        const admin = await tx.appUser.create({
+          data: { empresaId: companies[0].id, email: adminEmail.toLowerCase(), passwordHash, rol: "Admin" },
+        });
+        return { company: companies[0], admin };
+      }
+
+      const company = await tx.company.create({ data: { ...companyData, nombre } });
       const admin = await tx.appUser.create({
-        data: {
-          empresaId: company.id,
-          email: adminEmail.toLowerCase(),
-          passwordHash,
-          rol: "Admin",
-        },
+        data: { empresaId: company.id, email: adminEmail.toLowerCase(), passwordHash, rol: "Admin" },
       });
       return { company, admin };
     });

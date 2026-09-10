@@ -13,15 +13,27 @@ export async function POST(req: NextRequest) {
   }
   try {
     await assertEmpresaActiva(empresaId);
-    const { recordId } = (await req.json()) as { recordId?: string };
+    const { recordId, lat, lon, accuracy } = (await req.json()) as {
+      recordId?: string;
+      lat?: number;
+      lon?: number;
+      accuracy?: number;
+    };
     if (!recordId) {
       return NextResponse.json({ error: "Falta recordId" }, { status: 400 });
+    }
+    if (typeof lat !== "number" || typeof lon !== "number") {
+      return NextResponse.json(
+        { error: "Necesitamos tu ubicación para fichar la salida. Activá el permiso de ubicación e intentá de nuevo." },
+        { status: 400 }
+      );
     }
     const existing = await getAttendanceRecord(recordId, empresaId);
     if (existing.employeeId !== employeeId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-    const record = await checkOut(empresaId, recordId);
+    const coords = { lat, lon, accuracy: typeof accuracy === "number" ? accuracy : undefined };
+    const record = await checkOut(empresaId, recordId, coords);
     revalidatePath("/mi-fichaje");
     revalidatePath("/asistencia");
     return NextResponse.json(record);

@@ -14,10 +14,22 @@ model Company {
   id               String    @id @default(uuid())
   nombre           String
   estado           String    @default("Activo")
-  plan             String?
+  planId           String?
+  plan             Plan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  /** Etiqueta libre para cuando no hay un Plan del catálogo asignado (ej. "A medida"). */
+  planLabel        String?
   maxEmpleados     Int       @default(999999)
   maxAdmins        Int       @default(999999)
+  /** Días de tolerancia después de fechaVencimiento antes de pasar a modo solo lectura. */
+  diasGracia       Int       @default(5)
   fechaVencimiento DateTime? @db.Date
+  /** Si está seteado, esta empresa es una sucursal de un grupo (plan corporativo). */
+  grupoId          String?
+  grupo            EmpresaGrupo? @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  /** Dirección o etiqueta para identificar la sucursal dentro del grupo (ej. "Sucursal Centro"). */
+  direccion        String?
+  /** Color (hex, ej. "#1c02ab") para identificar visualmente la sucursal en el selector. */
+  color            String?
   createdAt        DateTime  @default(now())
 
   employees        Employee[]
@@ -28,7 +40,48 @@ model Company {
   shiftTemplates   ShiftTemplate[]
   shiftAssignments ShiftAssignment[]
 
+  @@index([planId])
+  @@index([grupoId])
   @@map("companies")
+}
+
+/** Agrupa varias Company (sucursales) bajo un mismo cliente corporativo, para que
+ * un solo login de Admin pueda elegir qué sucursal ver. */
+model EmpresaGrupo {
+  id         String    @id @default(uuid())
+  nombre     String
+  createdAt  DateTime  @default(now())
+
+  sucursales Company[]
+
+  @@map("empresa_grupos")
+}
+
+/** Catálogo de planes que gestiona el SuperAdmin — son los que se muestran en
+ * /planes y en el landing, y los que se pueden asignar al crear/editar una empresa. */
+model Plan {
+  id             String   @id @default(uuid())
+  nombre         String
+  precio         String
+  /** Precio de lista tachado, para mostrar descuento promocional (opcional). */
+  precioOriginal String?
+  maxEmpleados   Int
+  maxAdmins      Int
+  /** Mínimo 5, validado también en la API. */
+  diasGracia     Int      @default(5)
+  detalle        String[] @default([])
+  destacado      Boolean  @default(false)
+  /** Habilita, al crear la empresa, cargar varias sucursales bajo un mismo login. */
+  esCorporativo  Boolean  @default(false)
+  /** Si está apagado, deja de mostrarse en /planes y el landing, pero las
+   * empresas que ya lo tienen asignado no se ven afectadas. */
+  activo         Boolean  @default(true)
+  orden          Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  companies Company[]
+
+  @@map("plans")
 }
 
 model Employee {
@@ -77,6 +130,9 @@ model AttendanceRecord {
   latitud         Float?
   longitud        Float?
   precision       Float?
+  latitudSalida   Float?
+  longitudSalida  Float?
+  precisionSalida Float?
   createdAt       DateTime @default(now())
 
   @@index([empresaId, fecha])

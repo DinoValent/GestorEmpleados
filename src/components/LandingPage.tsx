@@ -1,7 +1,9 @@
 import Link from "next/link";
+import ContactLinks from "./ContactLinks";
 import Reveal from "./Reveal";
 import HeroCarousel from "./landing/HeroCarousel";
 import FaqAccordion from "./landing/FaqAccordion";
+import { listPlanesPublicos } from "@/lib/notion";
 
 const FEATURES = [
   {
@@ -30,24 +32,17 @@ const FEATURES = [
   },
 ];
 
-const PLANES_TEASER = [
-  {
-    nombre: "Inicial",
-    precioOriginal: "$90.000",
-    precio: "$50.000",
-    resumen: "Hasta 4 empleados · 1 administrador",
-    destacado: false,
-  },
-  {
-    nombre: "Premium",
-    precioOriginal: "$130.000",
-    precio: "$85.000",
-    resumen: "Hasta 10 empleados · 3 administradores",
-    destacado: true,
-  },
-];
+export default async function LandingPage() {
+  const planesPublicos = await listPlanesPublicos();
+  const PLANES_TEASER = planesPublicos.map((p) => ({
+    id: p.id,
+    nombre: p.nombre,
+    precioOriginal: p.precioOriginal,
+    precio: p.precio,
+    resumen: `Hasta ${p.maxEmpleados} empleados · ${p.maxAdmins} administrador${p.maxAdmins === 1 ? "" : "es"}`,
+    destacado: p.destacado,
+  }));
 
-export default function LandingPage() {
   return (
     <div className="space-y-24">
       <HeroCarousel />
@@ -124,11 +119,13 @@ export default function LandingPage() {
         </Reveal>
         <div className="mx-auto mt-8 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
           {PLANES_TEASER.map((p, i) => (
-            <Reveal key={p.nombre} delayMs={i * 80}>
+            <Reveal key={p.id} delayMs={i * 80}>
               <div className={`card h-full ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}>
-                <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                  Descuento promocional
-                </span>
+                {p.precioOriginal && (
+                  <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                    Descuento promocional
+                  </span>
+                )}
                 <h3 className="mt-3 text-lg font-semibold" style={{ color: "var(--foreground)" }}>
                   {p.nombre}
                 </h3>
@@ -136,7 +133,9 @@ export default function LandingPage() {
                   {p.resumen}
                 </p>
                 <p className="mt-4 flex flex-wrap items-baseline gap-2">
-                  <span className="text-base text-slate-400 line-through">{p.precioOriginal}</span>
+                  {p.precioOriginal && (
+                    <span className="text-base text-slate-400 line-through">{p.precioOriginal}</span>
+                  )}
                   <span className="text-2xl font-semibold" style={{ color: "var(--foreground)" }}>
                     {p.precio}
                   </span>
@@ -193,38 +192,7 @@ export default function LandingPage() {
         <p className="mt-3" style={{ color: "var(--foreground-secondary)" }}>
           ¿Tenés dudas, querés una demo, o contarnos qué necesita tu negocio?
         </p>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
-          <a
-            href="mailto:puntual.org@gmail.com"
-            className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-          >
-            puntual.org@gmail.com
-          </a>
-          <a
-            href="https://wa.me/5493400446008"
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-          >
-            +54 9 3400 44-6008
-          </a>
-          <a
-            href="https://wa.me/5493364693823"
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-          >
-            +54 9 3364 69-3823
-          </a>
-          <a
-            href="https://instagram.com/puntual.servicio"
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-          >
-            @puntual.servicio
-          </a>
-        </div>
+        <ContactLinks className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm" />
       </Reveal>
 
       <footer className="px-4 text-center text-xs sm:px-0" style={{ color: "var(--foreground-muted)" }}>
