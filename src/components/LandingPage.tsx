@@ -120,7 +120,10 @@ export default async function LandingPage() {
         <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PLANES_TEASER.map((p, i) => (
             <Reveal key={p.id} delayMs={i * 80}>
-              <div className={`card h-full border-2 ${p.destacado ? "border-indigo-400 shadow-md" : "border-[var(--foreground)]"}`}>
+              <div
+                className={`card h-full border-2 ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}
+                style={!p.destacado ? { borderColor: "var(--foreground)" } : undefined}
+              >
                 {p.precioOriginal && (
                   <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                     Descuento promocional
