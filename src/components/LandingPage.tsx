@@ -121,10 +121,10 @@ export default async function LandingPage() {
           {PLANES_TEASER.map((p, i) => (
             <Reveal key={p.id} delayMs={i * 80}>
               <div
-                className={`card relative h-full transition-all duration-300 ${
-                  p.destacado ? "border-2 shadow-lg lg:-translate-y-2" : "hover:-translate-y-0.5 hover:shadow-md"
+                className={`card relative h-full border-2 transition-all duration-300 ${
+                  p.destacado ? "shadow-lg lg:-translate-y-2" : "hover:-translate-y-0.5 hover:shadow-md"
                 }`}
-                style={p.destacado ? { borderColor: "var(--accent)" } : undefined}
+                style={{ borderColor: p.destacado ? "var(--accent)" : "var(--foreground)" }}
               >
                 {p.destacado && (
                   <span
