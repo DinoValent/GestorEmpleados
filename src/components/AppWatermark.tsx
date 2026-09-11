@@ -5,7 +5,7 @@ export default function AppWatermark() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed -right-28 -bottom-20 -z-10 opacity-[0.05] dark:opacity-[0.09]"
+      className="pointer-events-none fixed -right-28 -bottom-20 -z-10 opacity-[0.14] dark:opacity-[0.2]"
     >
       <svg viewBox="0 0 400 220" className="h-[260px] w-[480px]" style={{ color: "var(--accent)" }}>
         <rect x="0" y="0" width="400" height="220" rx="110" fill="currentColor" />
