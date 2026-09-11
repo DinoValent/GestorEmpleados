@@ -33,7 +33,7 @@ export default function FaqAccordion() {
       {FAQS.map((item, i) => {
         const isOpen = openIndex === i;
         return (
-          <div key={item.q} className="card p-0">
+          <div key={item.q} className="card border-2 p-0" style={{ borderColor: "var(--foreground)" }}>
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? null : i)}

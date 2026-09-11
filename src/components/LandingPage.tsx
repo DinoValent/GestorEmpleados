@@ -91,7 +91,7 @@ export default async function LandingPage() {
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delayMs={i * 60}>
-              <div className="card h-full">
+              <div className="card h-full border-2" style={{ borderColor: "var(--foreground)" }}>
                 <h3 className="font-semibold" style={{ color: "var(--foreground)" }}>
                   {f.title}
                 </h3>
@@ -186,7 +186,7 @@ export default async function LandingPage() {
 
       {/* A medida */}
       <Reveal className="px-4 sm:px-0">
-        <div className="card mx-auto max-w-3xl text-center">
+        <div className="card mx-auto max-w-3xl border-2 text-center" style={{ borderColor: "var(--foreground)" }}>
           <h2 className="text-2xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
             ¿Necesitás algo distinto?
           </h2>
