@@ -2,6 +2,7 @@ import Link from "next/link";
 import ContactLinks from "@/components/ContactLinks";
 import { getEmpresaId } from "@/lib/session";
 import { listPlanesPublicos } from "@/lib/notion";
+import { planWhatsAppHref } from "@/lib/whatsapp";
 
 export default async function PlanesPage() {
   const [empresaId, PLANES] = await Promise.all([getEmpresaId(), listPlanesPublicos()]);
@@ -27,33 +28,49 @@ export default async function PlanesPage() {
         {PLANES.map((p) => (
           <div
             key={p.id}
-            className={`card border-2 ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}
-            style={!p.destacado ? { borderColor: "var(--foreground)" } : undefined}
+            className={`card relative flex h-full flex-col transition-all duration-300 ${
+              p.destacado
+                ? "border-2 shadow-lg lg:-translate-y-2"
+                : "hover:-translate-y-0.5 hover:shadow-md"
+            }`}
+            style={p.destacado ? { borderColor: "var(--accent)" } : undefined}
           >
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {p.destacado && (
-                <span className="badge bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300">
-                  Más elegido
-                </span>
-              )}
-              {p.precioOriginal && (
-                <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                  Descuento promocional
-                </span>
-              )}
-            </div>
-            <h2 className="text-lg font-semibold">{p.nombre}</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            {p.destacado && (
+              <span
+                className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-semibold whitespace-nowrap text-white shadow-sm"
+                style={{ background: "var(--accent)" }}
+              >
+                Más elegido
+              </span>
+            )}
+
+            <h2 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+              {p.nombre}
+            </h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--foreground-secondary)" }}>
               Hasta {p.maxEmpleados} empleados · {p.maxAdmins} administrador{p.maxAdmins === 1 ? "" : "es"}
             </p>
-            <p className="mt-4 flex flex-wrap items-baseline gap-2">
+
+            <div className="mt-5 flex flex-wrap items-baseline gap-2">
               {p.precioOriginal && (
-                <span className="text-lg text-slate-400 line-through">{p.precioOriginal}</span>
+                <span className="text-base text-slate-400 line-through">{p.precioOriginal}</span>
               )}
-              <span className="text-3xl font-semibold">{p.precio}</span>
-              <span className="text-sm font-normal text-slate-400">/mes</span>
-            </p>
-            <ul className="mt-5 space-y-2 text-sm text-slate-600">
+              <span className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>
+                {p.precio}
+              </span>
+              <span className="text-sm" style={{ color: "var(--foreground-muted)" }}>
+                /mes
+              </span>
+            </div>
+            {p.precioOriginal && (
+              <span className="badge mt-2 bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                Descuento promocional
+              </span>
+            )}
+
+            <div className="my-5 border-t" style={{ borderColor: "var(--border)" }} />
+
+            <ul className="flex-1 space-y-2.5 text-sm" style={{ color: "var(--foreground-secondary)" }}>
               {p.detalle.map((d) => (
                 <li key={d} className="flex items-start gap-2">
                   <svg
@@ -69,6 +86,15 @@ export default async function PlanesPage() {
                 </li>
               ))}
             </ul>
+
+            <a
+              href={planWhatsAppHref(p.nombre)}
+              target="_blank"
+              rel="noreferrer"
+              className={`mt-6 w-full justify-center ${p.destacado ? "btn-primary" : "btn-secondary"}`}
+            >
+              Elegir {p.nombre}
+            </a>
           </div>
         ))}
       </div>

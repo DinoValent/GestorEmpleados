@@ -121,29 +121,41 @@ export default async function LandingPage() {
           {PLANES_TEASER.map((p, i) => (
             <Reveal key={p.id} delayMs={i * 80}>
               <div
-                className={`card h-full border-2 ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}
-                style={!p.destacado ? { borderColor: "var(--foreground)" } : undefined}
+                className={`card relative h-full transition-all duration-300 ${
+                  p.destacado ? "border-2 shadow-lg lg:-translate-y-2" : "hover:-translate-y-0.5 hover:shadow-md"
+                }`}
+                style={p.destacado ? { borderColor: "var(--accent)" } : undefined}
               >
-                {p.precioOriginal && (
-                  <span className="badge bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                    Descuento promocional
+                {p.destacado && (
+                  <span
+                    className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-xs font-semibold whitespace-nowrap text-white shadow-sm"
+                    style={{ background: "var(--accent)" }}
+                  >
+                    Más elegido
                   </span>
                 )}
-                <h3 className="mt-3 text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+                <h3 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
                   {p.nombre}
                 </h3>
                 <p className="mt-1 text-sm" style={{ color: "var(--foreground-secondary)" }}>
                   {p.resumen}
                 </p>
-                <p className="mt-4 flex flex-wrap items-baseline gap-2">
+                <div className="mt-5 flex flex-wrap items-baseline gap-2">
                   {p.precioOriginal && (
                     <span className="text-base text-slate-400 line-through">{p.precioOriginal}</span>
                   )}
-                  <span className="text-2xl font-semibold" style={{ color: "var(--foreground)" }}>
+                  <span className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
                     {p.precio}
                   </span>
-                  <span className="text-sm text-slate-400">/mes</span>
-                </p>
+                  <span className="text-sm" style={{ color: "var(--foreground-muted)" }}>
+                    /mes
+                  </span>
+                </div>
+                {p.precioOriginal && (
+                  <span className="badge mt-2 bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+                    Descuento promocional
+                  </span>
+                )}
               </div>
             </Reveal>
           ))}
