@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    await assertEmpresaActiva(empresaId);
+    const empresa = await assertEmpresaActiva(empresaId);
     const { id } = await params;
     const { email, password, rol, employeeId } = (await req.json()) as {
       email?: string;
@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await getEmployee(employeeId, empresaId); // valida que el empleado sea de esta empresa
     }
     if (rol === "Admin") {
-      await assertAdminLimit(empresaId, id);
+      await assertAdminLimit(empresaId, id, empresa);
     }
     const passwordHash = password ? await bcrypt.hash(password, 10) : undefined;
     const user = await updateUser(id, empresaId, {

@@ -274,9 +274,27 @@ async function withStats(c: Company): Promise<CompanyWithStats> {
   return { ...c, totalEmpleadosActivos, totalAdmins, totalUsuarios, ...computeVencimiento(c.fechaVencimiento, c.diasGracia) };
 }
 
+/** Igual que `withStats`, pero para todas las empresas de una — 3 consultas
+ * agregadas en total en vez de 3 por empresa (evita el N+1 en el panel de SuperAdmin). */
 export async function listCompaniesWithStats(): Promise<CompanyWithStats[]> {
   const companies = await listCompanies();
-  return Promise.all(companies.map(withStats));
+  const [empleadosPorEmpresa, adminsPorEmpresa, usuariosPorEmpresa] = await Promise.all([
+    prisma.employee.groupBy({ by: ["empresaId"], where: { estado: "Activo" }, _count: true }),
+    prisma.appUser.groupBy({ by: ["empresaId"], where: { rol: "Admin" }, _count: true }),
+    prisma.appUser.groupBy({ by: ["empresaId"], _count: true }),
+  ]);
+  const empleadosById = new Map(empleadosPorEmpresa.map((r) => [r.empresaId, r._count]));
+  const adminsById = new Map(adminsPorEmpresa.map((r) => [r.empresaId, r._count]));
+  const usuariosById = new Map(
+    usuariosPorEmpresa.filter((r) => r.empresaId !== null).map((r) => [r.empresaId as string, r._count])
+  );
+  return companies.map((c) => ({
+    ...c,
+    totalEmpleadosActivos: empleadosById.get(c.id) ?? 0,
+    totalAdmins: adminsById.get(c.id) ?? 0,
+    totalUsuarios: usuariosById.get(c.id) ?? 0,
+    ...computeVencimiento(c.fechaVencimiento, c.diasGracia),
+  }));
 }
 
 export async function getCompanyWithStats(id: string): Promise<CompanyWithStats> {
@@ -1047,26 +1065,26 @@ function diaSemanaOf(dateISO: string): (typeof DIAS_SEMANA_ORDEN)[number] {
   return DIAS_SEMANA_ORDEN[(day + 6) % 7];
 }
 
-/**
- * Resuelve qué horario le toca a un empleado en una fecha puntual: si tiene una
- * asignación de turno rotativo vigente ese día (y que incluya ese día de la semana),
- * usa ese turno; si no, cae al turno fijo asignado en su ficha; si tampoco tiene uno,
- * queda sin horario de referencia.
- */
-export async function resolveEmployeeSchedule(
-  empresaId: string,
+interface ResolvedSchedule {
+  horaEntrada: string;
+  horaSalida: string;
+  rotativo: boolean;
+}
+
+/** Misma lógica de resolución, pero en memoria — para poder resolver el horario
+ * de N empleados con las asignaciones/turnos de la empresa ya traídos una sola vez,
+ * en vez de una consulta por empleado (ver `resolveSchedulesForEmployees`). */
+function resolveScheduleFromLists(
+  assignments: ShiftAssignment[],
+  shifts: ShiftTemplate[],
   employeeId: string,
   date: string,
   employee: Employee,
-): Promise<{ horaEntrada: string; horaSalida: string; rotativo: boolean }> {
-  const [assignments, shifts] = await Promise.all([
-    listShiftAssignments(empresaId, employeeId),
-    listShiftTemplates(empresaId),
-  ]);
-
+): ResolvedSchedule {
   const dia = diaSemanaOf(date);
   const match = assignments.find(
     (a) =>
+      a.employeeId === employeeId &&
       date >= a.fechaInicio &&
       (a.fechaFin === null || date <= a.fechaFin) &&
       (a.diasSemana.length === 0 || a.diasSemana.includes(dia)),
@@ -1084,6 +1102,45 @@ export async function resolveEmployeeSchedule(
   }
 
   return { horaEntrada: "", horaSalida: "", rotativo: false };
+}
+
+/**
+ * Resuelve qué horario le toca a un empleado en una fecha puntual: si tiene una
+ * asignación de turno rotativo vigente ese día (y que incluya ese día de la semana),
+ * usa ese turno; si no, cae al turno fijo asignado en su ficha; si tampoco tiene uno,
+ * queda sin horario de referencia.
+ *
+ * Pensada para un solo empleado (ej. al fichar). Para resolver varios a la vez
+ * (una página con toda la nómina), usar `resolveSchedulesForEmployees` — evita
+ * repetir la consulta de turnos/asignaciones de la empresa por cada empleado.
+ */
+export async function resolveEmployeeSchedule(
+  empresaId: string,
+  employeeId: string,
+  date: string,
+  employee: Employee,
+): Promise<ResolvedSchedule> {
+  const [assignments, shifts] = await Promise.all([
+    listShiftAssignments(empresaId, employeeId),
+    listShiftTemplates(empresaId),
+  ]);
+  return resolveScheduleFromLists(assignments, shifts, employeeId, date, employee);
+}
+
+/** Resuelve el horario de varios empleados para una misma fecha con una sola
+ * consulta de asignaciones y una de turnos, en vez de dos por empleado. */
+export async function resolveSchedulesForEmployees(
+  empresaId: string,
+  employees: Employee[],
+  date: string,
+): Promise<Map<string, ResolvedSchedule>> {
+  const [assignments, shifts] = await Promise.all([
+    listShiftAssignments(empresaId),
+    listShiftTemplates(empresaId),
+  ]);
+  return new Map(
+    employees.map((e) => [e.id, resolveScheduleFromLists(assignments, shifts, e.id, date, e)]),
+  );
 }
 
 /** True si el empleado tiene alguna asignación de turno cargada (usa rotativos). */

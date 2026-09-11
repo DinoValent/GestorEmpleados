@@ -98,11 +98,14 @@ export default async function ResumenPagosPage({
     0
   );
 
-  const scheduleStatusEntries = await Promise.all(
-    activos.map(async (e) => {
-      const assignments = await listShiftAssignments(empresaId, e.id);
-      const overlapping = assignments.filter(
-        (a) => a.fechaInicio <= range.to && (a.fechaFin === null || a.fechaFin >= range.from)
+  const allAssignments = await listShiftAssignments(empresaId);
+  const scheduleStatusByEmployee = new Map(
+    activos.map((e) => {
+      const overlapping = allAssignments.filter(
+        (a) =>
+          a.employeeId === e.id &&
+          a.fechaInicio <= range.to &&
+          (a.fechaFin === null || a.fechaFin >= range.from)
       );
       return [
         e.id,
@@ -113,7 +116,6 @@ export default async function ResumenPagosPage({
       ] as const;
     })
   );
-  const scheduleStatusByEmployee = new Map(scheduleStatusEntries);
 
   return (
     <div className="space-y-6">

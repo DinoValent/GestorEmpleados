@@ -2,7 +2,7 @@ import Link from "next/link";
 import AttendanceBoard from "@/components/AttendanceBoard";
 import TutorialHint from "@/components/TutorialHint";
 import { formatRangeLabel } from "@/lib/calendar";
-import { listAttendance, listEmployees, resolveEmployeeSchedule, todayISO } from "@/lib/notion";
+import { listAttendance, listEmployees, resolveSchedulesForEmployees, todayISO } from "@/lib/notion";
 import { getEmpresaId } from "@/lib/session";
 
 export const revalidate = 30;
@@ -27,12 +27,8 @@ export default async function AsistenciaPage({
     .filter((e) => e.estado === "Activo")
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  const scheduleEntries = await Promise.all(
-    activos.map(
-      async (e) => [e.id, await resolveEmployeeSchedule(empresaId, e.id, date, e)] as const
-    )
-  );
-  const schedules = Object.fromEntries(scheduleEntries);
+  const scheduleMap = await resolveSchedulesForEmployees(empresaId, activos, date);
+  const schedules = Object.fromEntries(scheduleMap);
 
   return (
     <div className="space-y-6">

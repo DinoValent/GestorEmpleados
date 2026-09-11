@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { computeVencimiento, countActiveEmployees, countAdmins, getCompany } from "./notion";
+import type { Company } from "./types";
 
 /** Error de negocio (límite de plan o suscripción vencida): se muestra tal cual al usuario. */
 export class PlanLimitError extends Error {
@@ -10,8 +11,10 @@ export class PlanLimitError extends Error {
   }
 }
 
-/** La empresa puede seguir usando la app en modo lectura/escritura normal. */
-export async function assertEmpresaActiva(empresaId: string): Promise<void> {
+/** La empresa puede seguir usando la app en modo lectura/escritura normal. Devuelve
+ * la empresa ya traída para que, si el handler también necesita chequear un límite
+ * (`assertEmployeeLimit`/`assertAdminLimit`), no haga una segunda consulta idéntica. */
+export async function assertEmpresaActiva(empresaId: string): Promise<Company> {
   const empresa = await getCompany(empresaId);
   if (empresa.estado !== "Activo") {
     throw new PlanLimitError("Tu empresa está desactivada. Contactá al administrador de Puntual.");
@@ -22,23 +25,26 @@ export async function assertEmpresaActiva(empresaId: string): Promise<void> {
       "La suscripción de tu empresa venció. Contactá al administrador de Puntual para renovarla."
     );
   }
+  return empresa;
 }
 
-export async function assertEmployeeLimit(empresaId: string): Promise<void> {
-  const empresa = await getCompany(empresaId);
+export async function assertEmployeeLimit(empresaId: string, empresa?: Company): Promise<void> {
+  const e = empresa ?? (await getCompany(empresaId));
   const count = await countActiveEmployees(empresaId);
-  if (count >= empresa.maxEmpleados) {
-    throw new PlanLimitError(`Alcanzaste el máximo de ${empresa.maxEmpleados} empleados de tu plan.`);
+  if (count >= e.maxEmpleados) {
+    throw new PlanLimitError(`Alcanzaste el máximo de ${e.maxEmpleados} empleados de tu plan.`);
   }
 }
 
-export async function assertAdminLimit(empresaId: string, excludeUserId?: string): Promise<void> {
-  const empresa = await getCompany(empresaId);
+export async function assertAdminLimit(
+  empresaId: string,
+  excludeUserId?: string,
+  empresa?: Company
+): Promise<void> {
+  const e = empresa ?? (await getCompany(empresaId));
   const count = await countAdmins(empresaId, excludeUserId);
-  if (count >= empresa.maxAdmins) {
-    throw new PlanLimitError(
-      `Alcanzaste el máximo de ${empresa.maxAdmins} administradores de tu plan.`
-    );
+  if (count >= e.maxAdmins) {
+    throw new PlanLimitError(`Alcanzaste el máximo de ${e.maxAdmins} administradores de tu plan.`);
   }
 }
 

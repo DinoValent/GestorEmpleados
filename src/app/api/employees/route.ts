@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    await assertEmpresaActiva(empresaId);
+    const empresa = await assertEmpresaActiva(empresaId);
     const data = (await req.json()) as Omit<EmployeeInput, "empresaId">;
     if (!data.nombre?.trim()) {
       return NextResponse.json({ error: "El nombre es obligatorio" }, { status: 400 });
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (data.shiftId) {
       await getShiftTemplate(data.shiftId, empresaId); // valida que el turno sea de esta empresa
     }
-    await assertEmployeeLimit(empresaId);
+    await assertEmployeeLimit(empresaId, empresa);
     const employee = await createEmployee({ ...data, empresaId });
     revalidatePath("/empleados");
     revalidatePath("/");

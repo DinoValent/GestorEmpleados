@@ -1,10 +1,11 @@
 import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { cache } from "react";
 import { authConfig } from "./auth.config";
 import { getUserByEmail } from "./notion";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const { handlers, signIn, signOut, auth: uncachedAuth } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -34,3 +35,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
 });
+
+// Sin este cache(), cada llamada a auth() dentro del mismo request (proxy,
+// layout, page, componentes anidados) vuelve a decodificar el JWT desde cero.
+export const auth = cache(uncachedAuth);
+export { handlers, signIn, signOut };

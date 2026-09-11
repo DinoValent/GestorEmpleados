@@ -63,23 +63,24 @@ export default function HeroCarousel() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
+  // Se mueve el track directamente con scrollTo (scroll horizontal propio del
+  // carrusel) en vez de scrollIntoView: ese método le pide al navegador "traer
+  // el elemento a la vista" recorriendo TODOS los contenedores con scroll en
+  // la cadena, incluida la página — y en algunos navegadores eso termina
+  // moviendo el scroll vertical entero, aunque se le pida block: "nearest".
+  function goTo(index: number) {
     const track = trackRef.current;
     if (!track) return;
+    track.scrollTo({ left: index * track.clientWidth, behavior: "smooth" });
+  }
+
+  useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const interval = setInterval(() => {
-      const next = (active + 1) % SLIDES.length;
-      const target = track.children[next] as HTMLElement | undefined;
-      target?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      goTo((active + 1) % SLIDES.length);
     }, 5500);
     return () => clearInterval(interval);
   }, [active]);
-
-  function goTo(index: number) {
-    const track = trackRef.current;
-    const target = track?.children[index] as HTMLElement | undefined;
-    target?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  }
 
   return (
     <section className="relative left-1/2 right-1/2 -mx-[50vw] -mt-6 w-screen overflow-hidden sm:-mt-8">

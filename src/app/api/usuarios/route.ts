@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const empresaId = await getEmpresaId();
   if (!empresaId) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
-    await assertEmpresaActiva(empresaId);
+    const empresa = await assertEmpresaActiva(empresaId);
     const { email, password, rol, employeeId } = (await req.json()) as {
       email?: string;
       password?: string;
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       await getEmployee(employeeId, empresaId); // valida que el empleado sea de esta empresa
     }
     if (rol === "Admin") {
-      await assertAdminLimit(empresaId);
+      await assertAdminLimit(empresaId, undefined, empresa);
     }
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await upsertUser(empresaId, {
