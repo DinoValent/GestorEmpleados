@@ -6,8 +6,8 @@ import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   return (
-    <div className="relative -mx-4 -my-6 flex min-h-[calc(100vh-1px)] flex-col items-center justify-center gap-8 overflow-hidden px-4 py-10 sm:-mx-6 sm:-my-8 sm:px-6">
-      <div className="fixed inset-0 -z-10">
+    <div className="relative -mx-4 -my-6 flex min-h-[calc(100vh-1px)] flex-col items-center justify-center gap-8 px-4 py-10 sm:-mx-6 sm:-my-8 sm:px-6">
+      <div className="absolute inset-y-0 left-1/2 -z-10 w-screen -translate-x-1/2">
         <BrandHeroBackground />
       </div>
 

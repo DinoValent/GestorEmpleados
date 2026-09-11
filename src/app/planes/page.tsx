@@ -27,7 +27,7 @@ export default async function PlanesPage() {
         {PLANES.map((p) => (
           <div
             key={p.id}
-            className={`card ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}
+            className={`card border-2 ${p.destacado ? "border-indigo-400 shadow-md" : "border-[var(--foreground)]"}`}
           >
             <div className="mb-3 flex flex-wrap items-center gap-2">
               {p.destacado && (
