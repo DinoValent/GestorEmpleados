@@ -19,6 +19,7 @@
   --accent-hover: color-mix(in srgb, #1c02ab 82%, black);
   --accent-soft: color-mix(in srgb, #1c02ab 14%, white);
   --accent-soft-text: color-mix(in srgb, #1c02ab 88%, black);
+  --card-bg: color-mix(in srgb, #1c02ab 6%, white);
   --shadow-color: 250 85% 35%;
   --logo-fg: #000000;
   --logo-dot: #ffffff;
@@ -43,6 +44,7 @@
   --accent-hover: color-mix(in srgb, #1c02ab 40%, white);
   --accent-soft: rgba(28, 2, 171, 0.22);
   --accent-soft-text: color-mix(in srgb, #1c02ab 35%, white);
+  --card-bg: var(--surface);
   --shadow-color: 230 60% 3%;
   --logo-fg: #ffffff;
   --logo-dot: #000000;
@@ -244,7 +246,7 @@ body {
 @layer components {
   .card {
     @apply relative rounded-2xl p-6 shadow-sm transition-all duration-200;
-    background: var(--surface);
+    background: var(--card-bg);
     border: 1px solid var(--border);
     box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.04);
   }
