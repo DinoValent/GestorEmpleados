@@ -48,15 +48,15 @@ export default async function LandingPage() {
       <HeroCarousel />
 
       {/* Próximamente */}
-      <Reveal className="mx-auto max-w-3xl px-4 sm:px-0">
+      <Reveal className="mx-auto max-w-4xl px-4 sm:px-0">
         <div
-          className="card flex flex-col items-start gap-3 sm:flex-row sm:items-center"
+          className="card flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:gap-6 sm:p-8"
           style={{ borderStyle: "dashed", borderColor: "var(--accent)" }}
         >
-          <span className="badge shrink-0 bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+          <span className="badge shrink-0 bg-amber-100 px-3 py-1 text-sm text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
             Próximamente
           </span>
-          <p className="text-sm" style={{ color: "var(--foreground-secondary)" }}>
+          <p className="text-base sm:text-lg" style={{ color: "var(--foreground-secondary)" }}>
             Estamos construyendo{" "}
             <strong style={{ color: "var(--foreground)" }}>Puntual Stock</strong>, una nueva
             app para controlar el inventario de tu negocio — y no es lo único que viene.
@@ -117,7 +117,7 @@ export default async function LandingPage() {
             Descuento promocional por tiempo limitado.
           </p>
         </Reveal>
-        <div className="mx-auto mt-8 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {PLANES_TEASER.map((p, i) => (
             <Reveal key={p.id} delayMs={i * 80}>
               <div className={`card h-full ${p.destacado ? "border-indigo-400 shadow-md" : ""}`}>
