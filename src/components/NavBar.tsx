@@ -55,7 +55,7 @@ export default function NavBar() {
       className="sticky top-0 z-40 border-b backdrop-blur-md"
       style={{ borderColor: "var(--border)", background: "color-mix(in srgb, var(--surface) 85%, transparent)" }}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
+      <div className="flex w-full items-center justify-between px-4 py-3.5 sm:px-6 lg:px-10">
         <Link
           href={!authenticated ? "/" : isAdmin ? "/" : "/mi-fichaje"}
           className="transition-opacity hover:opacity-80"
