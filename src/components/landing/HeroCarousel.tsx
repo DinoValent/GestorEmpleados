@@ -122,7 +122,10 @@ export default function HeroCarousel() {
               }}
             />
 
-            <div className="relative mx-auto max-w-2xl text-center">
+            <div
+              key={`content-${i}-${active === i}`}
+              className={`relative mx-auto max-w-2xl text-center ${active === i ? "animate-slide-content" : ""}`}
+            >
               {i === 0 && (
                 <div className="mx-auto mb-6 flex justify-center drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)]">
                   <Logo invert size="lg" />
