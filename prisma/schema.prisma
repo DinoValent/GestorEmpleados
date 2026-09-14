@@ -30,6 +30,10 @@ model Company {
   direccion        String?
   /** Color (hex, ej. "#1c02ab") para identificar visualmente la sucursal en el selector. */
   color            String?
+  /** Teléfono de contacto del cliente (no es el login) — para retomar contacto si se da de baja. */
+  telefono         String?
+  /** Notas libres del SuperAdmin sobre el cliente (seguimiento comercial, motivo de baja, etc.). */
+  notas            String?
   createdAt        DateTime  @default(now())
 
   employees        Employee[]

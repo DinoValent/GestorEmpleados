@@ -33,6 +33,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       fechaVencimiento,
       direccion,
       color,
+      telefono,
+      notas,
     } = (await req.json()) as {
       estado?: Estado;
       planId?: string | null;
@@ -43,6 +45,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       fechaVencimiento?: string | null;
       direccion?: string | null;
       color?: string | null;
+      telefono?: string | null;
+      notas?: string | null;
     };
     if (diasGracia !== undefined && diasGracia < 5) {
       return NextResponse.json(
@@ -60,6 +64,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       fechaVencimiento,
       direccion,
       color,
+      telefono,
+      notas,
     });
     return NextResponse.json(empresa);
   } catch (err) {

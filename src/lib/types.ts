@@ -37,9 +37,15 @@ export interface Company {
   direccion: string | null;
   /** Color hex para identificar la sucursal en el selector. */
   color: string | null;
+  /** Teléfono de contacto del cliente (no es el login) — para retomar contacto si se da de baja. */
+  telefono: string | null;
+  /** Notas libres del SuperAdmin sobre el cliente. */
+  notas: string | null;
+  /** ISO date (yyyy-mm-dd) de alta del cliente. */
+  createdAt: string;
 }
 
-export type CompanyInput = Omit<Company, "id" | "planNombre">;
+export type CompanyInput = Omit<Company, "id" | "planNombre" | "createdAt">;
 
 /** Una sucursal dentro del selector — el mismo usuario puede ver el dashboard de cualquiera. */
 export interface Sucursal {

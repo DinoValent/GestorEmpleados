@@ -162,6 +162,9 @@ function mapCompany(row: {
   grupoId: string | null;
   direccion: string | null;
   color: string | null;
+  telefono: string | null;
+  notas: string | null;
+  createdAt: Date;
 }): Company {
   return {
     id: row.id,
@@ -177,6 +180,9 @@ function mapCompany(row: {
     grupoId: row.grupoId,
     direccion: row.direccion,
     color: row.color,
+    telefono: row.telefono,
+    notas: row.notas,
+    createdAt: toISODate(row.createdAt)!,
   };
 }
 
@@ -314,6 +320,8 @@ export async function updateCompanyPlan(
     fechaVencimiento?: string | null;
     direccion?: string | null;
     color?: string | null;
+    telefono?: string | null;
+    notas?: string | null;
   }
 ): Promise<Company> {
   const row = await prisma.company.update({
@@ -332,6 +340,8 @@ export async function updateCompanyPlan(
         : {}),
       ...(data.direccion !== undefined ? { direccion: data.direccion } : {}),
       ...(data.color !== undefined ? { color: data.color } : {}),
+      ...(data.telefono !== undefined ? { telefono: data.telefono } : {}),
+      ...(data.notas !== undefined ? { notas: data.notas } : {}),
     },
     include: companyInclude,
   });

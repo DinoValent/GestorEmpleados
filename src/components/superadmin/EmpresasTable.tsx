@@ -18,6 +18,12 @@ const VENCIMIENTO_OPTIONS: { value: VencimientoFiltro; label: string }[] = [
   { value: "sin", label: "Sin vencimiento" },
 ];
 
+function diasRelativos(fechaISO: string): string {
+  const dias = Math.ceil((new Date(fechaISO).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (dias >= 0) return `en ${dias} ${dias === 1 ? "día" : "días"}`;
+  return `hace ${Math.abs(dias)} ${Math.abs(dias) === 1 ? "día" : "días"}`;
+}
+
 function coincideVencimiento(e: CompanyWithStats, filtro: VencimientoFiltro): boolean {
   switch (filtro) {
     case "vencida":
@@ -351,6 +357,22 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
                     Sucursal
                   </span>
                 )}
+                {e.notas && (
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="ml-1.5 inline-block h-3.5 w-3.5 shrink-0 align-middle"
+                    fill="none"
+                    stroke="var(--foreground-muted)"
+                    strokeWidth={2}
+                  >
+                    <title>{e.notas}</title>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M7 8h10M7 12h6m-6 8-3-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-3 3Z"
+                    />
+                  </svg>
+                )}
                 {e.direccion && <p className="text-xs font-normal text-slate-400">{e.direccion}</p>}
               </td>
               <td>
@@ -373,7 +395,18 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
               <td>
                 {e.totalAdmins} / {e.maxAdmins >= 999999 ? "∞" : e.maxAdmins}
               </td>
-              <td>{e.fechaVencimiento ?? "Sin vencimiento"}</td>
+              <td>
+                {e.fechaVencimiento ? (
+                  <>
+                    {e.fechaVencimiento}{" "}
+                    <span className="text-xs" style={{ color: "var(--foreground-muted)" }}>
+                      ({diasRelativos(e.fechaVencimiento)})
+                    </span>
+                  </>
+                ) : (
+                  "Sin vencimiento"
+                )}
+              </td>
               <td className="whitespace-nowrap">
                 <Link
                   href={`/superadmin/empresas/${e.id}`}
