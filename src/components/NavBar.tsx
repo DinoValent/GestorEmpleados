@@ -125,7 +125,7 @@ export default function NavBar() {
                   })}
                 </nav>
               )}
-              {isAdmin && <SucursalSwitcher />}
+              {isAdmin && <SucursalSwitcher align="right" />}
               <div className="ml-1 border-l pl-3" style={{ borderColor: "var(--border)" }}>
                 <SettingsMenu email={session?.user?.email} />
               </div>

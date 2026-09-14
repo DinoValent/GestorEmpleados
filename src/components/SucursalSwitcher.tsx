@@ -12,7 +12,7 @@ function Dot({ color }: { color: string | null }) {
   );
 }
 
-export default function SucursalSwitcher() {
+export default function SucursalSwitcher({ align = "left" }: { align?: "left" | "right" }) {
   const [sucursales, setSucursales] = useState<Sucursal[] | null>(null);
   const [switching, setSwitching] = useState(false);
   const [open, setOpen] = useState(false);
@@ -98,7 +98,9 @@ export default function SucursalSwitcher() {
 
       {open && (
         <div
-          className="animate-pop absolute left-0 z-50 mt-2 w-64 origin-top-left overflow-hidden rounded-xl border shadow-lg"
+          className={`animate-pop absolute z-50 mt-2 w-64 overflow-hidden rounded-xl border shadow-lg ${
+            align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"
+          }`}
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}
         >
           <div className="border-b px-3 py-2" style={{ borderColor: "var(--border-subtle)" }}>
