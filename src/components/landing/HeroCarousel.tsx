@@ -82,11 +82,18 @@ export default function HeroCarousel() {
   function goTo(index: number) {
     const track = trackRef.current;
     if (!track) return;
-    track.scrollTo({ left: index * track.clientWidth, behavior: "smooth" });
+    track.scrollTo({
+      left: index * track.clientWidth,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
   }
 
+  // El autoplay en sí (que cambie de imagen solo) no es una animación
+  // decorativa, es la función que se pidió explícitamente — así que corre
+  // siempre. Lo que sí respeta prefers-reduced-motion es CÓMO cambia: sin
+  // deslizamiento suave (goTo usa "auto") y sin el relleno animado del
+  // puntito (ver más abajo), en vez de desactivar el carrusel entero.
   useEffect(() => {
-    if (reducedMotion) return;
     const interval = setInterval(() => {
       goTo((active + 1) % SLIDES.length);
     }, AUTOPLAY_MS);
