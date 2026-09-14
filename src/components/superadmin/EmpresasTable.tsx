@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CompanyWithStats } from "@/lib/notion";
 
 type VencimientoFiltro = "todos" | "vencida" | "gracia" | "activa" | "sin";
@@ -55,22 +56,56 @@ function FilterIcon({ activo }: { activo: boolean }) {
   );
 }
 
+/** Popover flotante fuera del flujo de la tabla (portal a body, position: fixed
+ * calculado desde el botón que lo abre) — así no lo recorta el contenedor con
+ * overflow-x-auto de la tabla ni se rompe el layout cuando quedan pocas filas. */
+function Popover({
+  pos,
+  onRequestClose,
+  children,
+}: {
+  pos: { top: number; left: number };
+  onRequestClose: () => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onPointerDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onRequestClose();
+    }
+    function onScrollOrResize() {
+      onRequestClose();
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [onRequestClose]);
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="fixed z-50 rounded-lg border shadow-lg"
+      style={{ top: pos.top, left: pos.left, background: "var(--surface)", borderColor: "var(--border)" }}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+}
+
 export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats[] }) {
   const [busqueda, setBusqueda] = useState("");
   const [plan, setPlan] = useState("todos");
   const [vencimiento, setVencimiento] = useState<VencimientoFiltro>("todos");
   const [orden, setOrden] = useState<{ key: OrdenKey; dir: OrdenDir }>({ key: "nombre", dir: "asc" });
   const [menuAbierto, setMenuAbierto] = useState<MenuAbierto>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuAbierto) return;
-    function onClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuAbierto(null);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [menuAbierto]);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
   const planes = useMemo(() => {
     const set = new Set(empresas.map((e) => e.planNombre).filter((p): p is string => !!p));
@@ -83,8 +118,23 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
     );
   }
 
-  function toggleMenu(m: MenuAbierto) {
-    setMenuAbierto((prev) => (prev === m ? null : m));
+  function toggleMenu(m: Exclude<MenuAbierto, null>, boton: HTMLButtonElement) {
+    if (menuAbierto === m) {
+      setMenuAbierto(null);
+      return;
+    }
+    const r = boton.getBoundingClientRect();
+    setMenuPos({ top: r.bottom + 6, left: r.left });
+    setMenuAbierto(m);
+  }
+
+  const hayFiltrosActivos = busqueda !== "" || plan !== "todos" || vencimiento !== "todos";
+
+  function quitarFiltros() {
+    setBusqueda("");
+    setPlan("todos");
+    setVencimiento("todos");
+    setMenuAbierto(null);
   }
 
   const empresasFiltradas = useMemo(() => {
@@ -114,7 +164,7 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
       <table className="table-base">
         <thead>
           <tr>
-            <th className="relative">
+            <th>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -126,7 +176,7 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
                 </button>
                 <button
                   type="button"
-                  onClick={() => toggleMenu("buscar")}
+                  onClick={(e) => toggleMenu("buscar", e.currentTarget)}
                   aria-label="Buscar empresa"
                   className="rounded p-0.5 hover:opacity-70"
                   style={{ color: busqueda ? "var(--accent)" : "inherit" }}
@@ -138,28 +188,26 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
                 </button>
               </div>
               {menuAbierto === "buscar" && (
-                <div
-                  ref={menuRef}
-                  className="absolute top-full left-0 z-20 mt-1 w-56 rounded-lg border p-2 shadow-lg"
-                  style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-                >
-                  <input
-                    autoFocus
-                    type="text"
-                    className="input text-sm normal-case"
-                    placeholder="Buscar por nombre..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                  />
-                </div>
+                <Popover pos={menuPos} onRequestClose={() => setMenuAbierto(null)}>
+                  <div className="p-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      className="input w-56 text-sm normal-case"
+                      placeholder="Buscar por nombre..."
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                    />
+                  </div>
+                </Popover>
               )}
             </th>
-            <th className="relative">
+            <th>
               <div className="flex items-center gap-1.5">
                 <span>Estado</span>
                 <button
                   type="button"
-                  onClick={() => toggleMenu("vencimiento")}
+                  onClick={(e) => toggleMenu("vencimiento", e.currentTarget)}
                   aria-label="Filtrar por estado"
                   className="rounded p-0.5 hover:opacity-70"
                   style={{ color: vencimiento !== "todos" ? "var(--accent)" : "inherit" }}
@@ -168,32 +216,30 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
                 </button>
               </div>
               {menuAbierto === "vencimiento" && (
-                <div
-                  ref={menuRef}
-                  className="absolute top-full left-0 z-20 mt-1 w-40 rounded-lg border p-1 shadow-lg"
-                  style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-                >
-                  {VENCIMIENTO_OPTIONS.map((o) => (
-                    <button
-                      key={o.value}
-                      type="button"
-                      onClick={() => {
-                        setVencimiento(o.value);
-                        setMenuAbierto(null);
-                      }}
-                      className="block w-full rounded-md px-2 py-1.5 text-left text-xs font-normal normal-case hover:bg-[var(--surface-hover)]"
-                      style={{
-                        color: o.value === vencimiento ? "var(--accent)" : "var(--foreground)",
-                        fontWeight: o.value === vencimiento ? 600 : 400,
-                      }}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
+                <Popover pos={menuPos} onRequestClose={() => setMenuAbierto(null)}>
+                  <div className="w-40 p-1">
+                    {VENCIMIENTO_OPTIONS.map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => {
+                          setVencimiento(o.value);
+                          setMenuAbierto(null);
+                        }}
+                        className="block w-full rounded-md px-2 py-1.5 text-left text-xs font-normal normal-case hover:bg-[var(--surface-hover)]"
+                        style={{
+                          color: o.value === vencimiento ? "var(--accent)" : "var(--foreground)",
+                          fontWeight: o.value === vencimiento ? 600 : 400,
+                        }}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </Popover>
               )}
             </th>
-            <th className="relative">
+            <th>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
@@ -205,7 +251,7 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
                 </button>
                 <button
                   type="button"
-                  onClick={() => toggleMenu("plan")}
+                  onClick={(e) => toggleMenu("plan", e.currentTarget)}
                   aria-label="Filtrar por plan"
                   className="rounded p-0.5 hover:opacity-70"
                   style={{ color: plan !== "todos" ? "var(--accent)" : "inherit" }}
@@ -214,43 +260,41 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
                 </button>
               </div>
               {menuAbierto === "plan" && (
-                <div
-                  ref={menuRef}
-                  className="absolute top-full left-0 z-20 mt-1 w-48 rounded-lg border p-1 shadow-lg"
-                  style={{ background: "var(--surface)", borderColor: "var(--border)" }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPlan("todos");
-                      setMenuAbierto(null);
-                    }}
-                    className="block w-full rounded-md px-2 py-1.5 text-left text-xs font-normal normal-case hover:bg-[var(--surface-hover)]"
-                    style={{
-                      color: plan === "todos" ? "var(--accent)" : "var(--foreground)",
-                      fontWeight: plan === "todos" ? 600 : 400,
-                    }}
-                  >
-                    Todos
-                  </button>
-                  {planes.map((p) => (
+                <Popover pos={menuPos} onRequestClose={() => setMenuAbierto(null)}>
+                  <div className="w-48 p-1">
                     <button
-                      key={p}
                       type="button"
                       onClick={() => {
-                        setPlan(p);
+                        setPlan("todos");
                         setMenuAbierto(null);
                       }}
                       className="block w-full rounded-md px-2 py-1.5 text-left text-xs font-normal normal-case hover:bg-[var(--surface-hover)]"
                       style={{
-                        color: p === plan ? "var(--accent)" : "var(--foreground)",
-                        fontWeight: p === plan ? 600 : 400,
+                        color: plan === "todos" ? "var(--accent)" : "var(--foreground)",
+                        fontWeight: plan === "todos" ? 600 : 400,
                       }}
                     >
-                      {p}
+                      Todos
                     </button>
-                  ))}
-                </div>
+                    {planes.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          setPlan(p);
+                          setMenuAbierto(null);
+                        }}
+                        className="block w-full rounded-md px-2 py-1.5 text-left text-xs font-normal normal-case hover:bg-[var(--surface-hover)]"
+                        style={{
+                          color: p === plan ? "var(--accent)" : "var(--foreground)",
+                          fontWeight: p === plan ? 600 : 400,
+                        }}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </Popover>
               )}
             </th>
             <th>Empleados</th>
@@ -265,7 +309,21 @@ export default function EmpresasTable({ empresas }: { empresas: CompanyWithStats
                 <SortIcon dir={orden.key === "vencimiento" ? orden.dir : null} />
               </button>
             </th>
-            <th></th>
+            <th className="text-right">
+              {hayFiltrosActivos && (
+                <button
+                  type="button"
+                  onClick={quitarFiltros}
+                  aria-label="Quitar filtros"
+                  title="Quitar filtros"
+                  className="rounded p-0.5 normal-case opacity-60 hover:opacity-100"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              )}
+            </th>
           </tr>
         </thead>
         <tbody>
