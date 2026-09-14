@@ -248,7 +248,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-page,
   .animate-pop,
-  .animate-dot-progress,
   .stagger > * {
     animation: none !important;
   }

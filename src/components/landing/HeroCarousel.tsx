@@ -46,15 +46,6 @@ const AUTOPLAY_MS = 5500;
 export default function HeroCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(query.matches);
-    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -82,23 +73,15 @@ export default function HeroCarousel() {
   function goTo(index: number) {
     const track = trackRef.current;
     if (!track) return;
-    track.scrollTo({
-      left: index * track.clientWidth,
-      behavior: reducedMotion ? "auto" : "smooth",
-    });
+    track.scrollTo({ left: index * track.clientWidth, behavior: "smooth" });
   }
 
-  // El autoplay en sí (que cambie de imagen solo) no es una animación
-  // decorativa, es la función que se pidió explícitamente — así que corre
-  // siempre. Lo que sí respeta prefers-reduced-motion es CÓMO cambia: sin
-  // deslizamiento suave (goTo usa "auto") y sin el relleno animado del
-  // puntito (ver más abajo), en vez de desactivar el carrusel entero.
   useEffect(() => {
     const interval = setInterval(() => {
       goTo((active + 1) % SLIDES.length);
     }, AUTOPLAY_MS);
     return () => clearInterval(interval);
-  }, [active, reducedMotion]);
+  }, [active]);
 
   return (
     <section className="relative left-1/2 right-1/2 -mx-[50vw] -mt-6 w-screen overflow-hidden sm:-mt-8">
@@ -186,16 +169,13 @@ export default function HeroCarousel() {
               active === i ? "w-8" : "w-2"
             }`}
           >
-            {active === i &&
-              (reducedMotion ? (
-                <span className="absolute inset-0 rounded-full bg-white" />
-              ) : (
-                <span
-                  key={active}
-                  className="animate-dot-progress absolute inset-y-0 left-0 w-full origin-left rounded-full bg-white"
-                  style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
-                />
-              ))}
+            {active === i && (
+              <span
+                key={active}
+                className="animate-dot-progress absolute inset-y-0 left-0 w-full origin-left rounded-full bg-white"
+                style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+              />
+            )}
           </button>
         ))}
       </div>
