@@ -200,6 +200,21 @@ body {
   }
 }
 
+@keyframes dot-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-dot-progress {
+  animation-name: dot-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
 .animate-page {
   animation: fade-in-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -233,6 +248,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-page,
   .animate-pop,
+  .animate-dot-progress,
   .stagger > * {
     animation: none !important;
   }

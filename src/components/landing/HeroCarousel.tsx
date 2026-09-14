@@ -41,9 +41,20 @@ const SLIDES: Slide[] = [
   },
 ];
 
+const AUTOPLAY_MS = 5500;
+
 export default function HeroCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(query.matches);
+    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -75,12 +86,12 @@ export default function HeroCarousel() {
   }
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (reducedMotion) return;
     const interval = setInterval(() => {
       goTo((active + 1) % SLIDES.length);
-    }, 5500);
+    }, AUTOPLAY_MS);
     return () => clearInterval(interval);
-  }, [active]);
+  }, [active, reducedMotion]);
 
   return (
     <section className="relative left-1/2 right-1/2 -mx-[50vw] -mt-6 w-screen overflow-hidden sm:-mt-8">
@@ -164,10 +175,21 @@ export default function HeroCarousel() {
             type="button"
             aria-label={`Ir a la diapositiva ${i + 1}`}
             onClick={() => goTo(i)}
-            className={`pointer-events-auto h-2 rounded-full transition-all duration-200 ${
-              active === i ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
+            className={`pointer-events-auto relative h-2 overflow-hidden rounded-full bg-white/40 transition-all duration-200 hover:bg-white/60 ${
+              active === i ? "w-8" : "w-2"
             }`}
-          />
+          >
+            {active === i &&
+              (reducedMotion ? (
+                <span className="absolute inset-0 rounded-full bg-white" />
+              ) : (
+                <span
+                  key={active}
+                  className="animate-dot-progress absolute inset-y-0 left-0 w-full origin-left rounded-full bg-white"
+                  style={{ animationDuration: `${AUTOPLAY_MS}ms` }}
+                />
+              ))}
+          </button>
         ))}
       </div>
 
