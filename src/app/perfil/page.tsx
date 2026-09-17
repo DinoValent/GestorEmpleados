@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import PreferencesCard from "@/components/PreferencesCard";
 import SignOutButton from "@/components/SignOutButton";
+import UbicacionSucursalForm from "@/components/UbicacionSucursalForm";
 import { auth } from "@/lib/auth";
 import { computeVencimiento, getCompany, listEmployees, listUsers, todayISO } from "@/lib/notion";
+import { getEmpresaId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ function initialsOf(email: string): string {
 export default async function PerfilPage() {
   const session = await auth();
   if (!session?.user || !session.user.empresaId) redirect("/login");
-  const empresaId = session.user.empresaId;
+  const empresaId = (await getEmpresaId()) ?? session.user.empresaId;
 
   const [empresa, employees, users] = await Promise.all([
     getCompany(empresaId),
@@ -184,6 +186,14 @@ export default async function PerfilPage() {
           </div>
         </div>
       </div>
+
+      {session.user.rol === "Admin" && (
+        <UbicacionSucursalForm
+          latitud={empresa.latitud}
+          longitud={empresa.longitud}
+          radioMetros={empresa.radioMetros}
+        />
+      )}
 
       <PreferencesCard />
 

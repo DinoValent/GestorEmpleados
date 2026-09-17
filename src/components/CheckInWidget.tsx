@@ -1,8 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { distanciaMetros } from "@/lib/geo";
 import type { AttendanceRecord } from "@/lib/types";
+
+interface SucursalUbicacion {
+  latitud: number;
+  longitud: number;
+  radioMetros: number;
+}
 
 function getLocation(): Promise<{ lat: number; lon: number; accuracy: number } | null> {
   return new Promise((resolve) => {
@@ -36,14 +43,43 @@ const LOCATION_BLOCKED_MESSAGE =
 export default function CheckInWidget({
   employeeName,
   records,
+  sucursalUbicacion,
 }: {
   employeeName: string;
   records: AttendanceRecord[];
+  sucursalUbicacion: SucursalUbicacion | null;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  // null = todavía no sabemos (esperando el primer fix de GPS); solo se usa si
+  // la sucursal tiene ubicación configurada — si no, el fichaje queda libre.
+  const [distancia, setDistancia] = useState<number | null>(null);
+  const [geoError, setGeoError] = useState(false);
+
+  useEffect(() => {
+    if (!sucursalUbicacion || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setGeoError(false);
+        setDistancia(
+          distanciaMetros(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            sucursalUbicacion.latitud,
+            sucursalUbicacion.longitud
+          )
+        );
+      },
+      () => setGeoError(true),
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [sucursalUbicacion]);
+
+  const fueraDeRango =
+    !!sucursalUbicacion && (geoError || distancia === null || distancia > sucursalUbicacion.radioMetros);
 
   const openRecord = records.find((r) => !r.horaSalida);
   const sorted = [...records].sort((a, b) => b.horaEntrada.localeCompare(a.horaEntrada));
@@ -96,7 +132,7 @@ export default function CheckInWidget({
               </p>
               <button
                 className="btn-secondary w-full py-3 text-base"
-                disabled={pending}
+                disabled={pending || fueraDeRango}
                 onClick={() => fichar("checkout")}
               >
                 {pending ? "Registrando..." : "Fichar salida"}
@@ -109,12 +145,23 @@ export default function CheckInWidget({
               </p>
               <button
                 className="btn-primary w-full py-3 text-base"
-                disabled={pending}
+                disabled={pending || fueraDeRango}
                 onClick={() => fichar("checkin")}
               >
                 {pending ? "Registrando..." : "Fichar entrada"}
               </button>
             </>
+          )}
+          {sucursalUbicacion && (
+            <p className="mt-3 text-xs text-slate-400">
+              {geoError
+                ? "No pudimos obtener tu ubicación. Activá el permiso de ubicación para poder fichar."
+                : distancia === null
+                  ? "Verificando tu ubicación..."
+                  : distancia > sucursalUbicacion.radioMetros
+                    ? `Estás a ${Math.round(distancia)} m del local — necesitás estar a menos de ${sucursalUbicacion.radioMetros} m para fichar.`
+                    : `Estás a ${Math.round(distancia)} m del local.`}
+            </p>
           )}
           {locationError && (
             <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">

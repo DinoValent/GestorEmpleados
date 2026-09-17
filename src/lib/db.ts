@@ -23,6 +23,7 @@ import type {
   Sucursal,
 } from "./types";
 import { nowHHMM, todayISO } from "./timezone";
+import { distanciaMetros, GeofenceError } from "./geo";
 import { prisma } from "./prisma";
 
 export { nowHHMM, todayISO };
@@ -164,6 +165,9 @@ function mapCompany(row: {
   color: string | null;
   telefono: string | null;
   notas: string | null;
+  latitud: number | null;
+  longitud: number | null;
+  radioMetros: number | null;
   createdAt: Date;
 }): Company {
   return {
@@ -180,6 +184,9 @@ function mapCompany(row: {
     grupoId: row.grupoId,
     direccion: row.direccion,
     color: row.color,
+    latitud: row.latitud,
+    longitud: row.longitud,
+    radioMetros: row.radioMetros,
     telefono: row.telefono,
     notas: row.notas,
     createdAt: toISODate(row.createdAt)!,
@@ -322,6 +329,9 @@ export async function updateCompanyPlan(
     color?: string | null;
     telefono?: string | null;
     notas?: string | null;
+    latitud?: number | null;
+    longitud?: number | null;
+    radioMetros?: number | null;
   }
 ): Promise<Company> {
   const row = await prisma.company.update({
@@ -342,6 +352,9 @@ export async function updateCompanyPlan(
       ...(data.color !== undefined ? { color: data.color } : {}),
       ...(data.telefono !== undefined ? { telefono: data.telefono } : {}),
       ...(data.notas !== undefined ? { notas: data.notas } : {}),
+      ...(data.latitud !== undefined ? { latitud: data.latitud } : {}),
+      ...(data.longitud !== undefined ? { longitud: data.longitud } : {}),
+      ...(data.radioMetros !== undefined ? { radioMetros: data.radioMetros } : {}),
     },
     include: companyInclude,
   });
@@ -534,11 +547,37 @@ async function findOpenAttendance(
   return row ? mapAttendance(row) : null;
 }
 
+/** Si la sucursal tiene ubicación configurada, exige que `coords` esté dentro
+ * del radio permitido — si no la tiene configurada, no exige nada (comportamiento
+ * actual, sin romper a las empresas que todavía no la cargaron). */
+async function assertDentroDelRadio(
+  empresaId: string,
+  coords?: { lat: number; lon: number },
+): Promise<void> {
+  const empresa = await prisma.company.findUnique({
+    where: { id: empresaId },
+    select: { latitud: true, longitud: true, radioMetros: true },
+  });
+  if (empresa?.latitud == null || empresa?.longitud == null) return;
+
+  if (!coords) {
+    throw new GeofenceError("Necesitamos tu ubicación para fichar en este local.");
+  }
+  const radio = empresa.radioMetros ?? 10;
+  const distancia = distanciaMetros(coords.lat, coords.lon, empresa.latitud, empresa.longitud);
+  if (distancia > radio) {
+    throw new GeofenceError(
+      `Estás a ${Math.round(distancia)} m del local — necesitás estar a menos de ${radio} m para fichar.`
+    );
+  }
+}
+
 export async function checkIn(
   empresaId: string,
   employeeId: string,
   coords?: { lat: number; lon: number; accuracy?: number },
 ): Promise<AttendanceRecord> {
+  await assertDentroDelRadio(empresaId, coords);
   const employee = await getEmployee(employeeId, empresaId);
   const date = todayISO();
 
@@ -634,6 +673,7 @@ export async function checkOut(
   recordId: string,
   coords?: { lat: number; lon: number; accuracy?: number },
 ): Promise<AttendanceRecord> {
+  await assertDentroDelRadio(empresaId, coords);
   const record = await getAttendanceRecord(recordId, empresaId);
   const employee = await getEmployee(record.employeeId, empresaId);
   const horaSalida = nowHHMM();

@@ -5,7 +5,7 @@ import HoursRangePicker, { type RangoTipo } from "@/components/HoursRangePicker"
 import { auth } from "@/lib/auth";
 import { formatRangeLabel, getMonthRange, getWeekRange } from "@/lib/calendar";
 import { dailyHoursChart } from "@/lib/chartData";
-import { getEmployee, listAttendance, todayISO } from "@/lib/notion";
+import { getCompany, getEmployee, listAttendance, todayISO } from "@/lib/notion";
 
 export const dynamic = "force-dynamic";
 
@@ -55,11 +55,16 @@ export default async function MiFichajePage({
   }
 
   const today = todayISO();
-  const [employee, todayRecords, rangeRecords] = await Promise.all([
+  const [employee, todayRecords, rangeRecords, empresa] = await Promise.all([
     getEmployee(employeeId, empresaId),
     listAttendance(empresaId, { employeeId, dateFrom: today, dateTo: today }),
     listAttendance(empresaId, { employeeId, dateFrom, dateTo }),
+    getCompany(empresaId),
   ]);
+  const sucursalUbicacion =
+    empresa.latitud !== null && empresa.longitud !== null
+      ? { latitud: empresa.latitud, longitud: empresa.longitud, radioMetros: empresa.radioMetros ?? 10 }
+      : null;
 
   const chartData = dailyHoursChart(rangeRecords, dateFrom, dateTo);
   const totalHoras = rangeRecords.reduce((acc, r) => acc + (r.horasTrabajadas ?? 0), 0);
@@ -68,7 +73,11 @@ export default async function MiFichajePage({
   return (
     <div className="space-y-10">
       <div className="mx-auto max-w-md">
-        <CheckInWidget employeeName={employee.nombre} records={todayRecords} />
+        <CheckInWidget
+          employeeName={employee.nombre}
+          records={todayRecords}
+          sucursalUbicacion={sucursalUbicacion}
+        />
       </div>
 
       <div className="mx-auto max-w-2xl space-y-4">

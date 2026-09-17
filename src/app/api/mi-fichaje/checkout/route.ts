@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkOut, getAttendanceRecord } from "@/lib/notion";
-import { assertEmpresaActiva, planLimitResponse } from "@/lib/planLimits";
+import { assertEmpresaActiva, geofenceResponse, planLimitResponse } from "@/lib/planLimits";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -39,6 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(record);
   } catch (err) {
     console.error(err);
-    return planLimitResponse(err) ?? NextResponse.json({ error: "No se pudo registrar la salida" }, { status: 500 });
+    return (
+      planLimitResponse(err) ??
+      geofenceResponse(err) ??
+      NextResponse.json({ error: "No se pudo registrar la salida" }, { status: 500 })
+    );
   }
 }

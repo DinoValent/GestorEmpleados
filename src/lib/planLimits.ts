@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { GeofenceError } from "./geo";
 import { computeVencimiento, countActiveEmployees, countAdmins, getCompany } from "./notion";
 import type { Company } from "./types";
 
@@ -51,6 +52,15 @@ export async function assertAdminLimit(
 /** Si `err` es un PlanLimitError, devuelve la respuesta ya armada para ese error; si no, null. */
 export function planLimitResponse(err: unknown): NextResponse | null {
   if (err instanceof PlanLimitError) {
+    return NextResponse.json({ error: err.message }, { status: err.status });
+  }
+  return null;
+}
+
+/** Si `err` es un GeofenceError (fichaje fuera del radio permitido), devuelve la
+ * respuesta ya armada para ese error; si no, null. */
+export function geofenceResponse(err: unknown): NextResponse | null {
+  if (err instanceof GeofenceError) {
     return NextResponse.json({ error: err.message }, { status: err.status });
   }
   return null;

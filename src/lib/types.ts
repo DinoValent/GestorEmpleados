@@ -41,6 +41,11 @@ export interface Company {
   telefono: string | null;
   /** Notas libres del SuperAdmin sobre el cliente. */
   notas: string | null;
+  /** Ubicación del local para el geofencing de fichaje — si son null, no se exige ubicación. */
+  latitud: number | null;
+  longitud: number | null;
+  /** Radio permitido (metros) alrededor de latitud/longitud para poder fichar. */
+  radioMetros: number | null;
   /** ISO date (yyyy-mm-dd) de alta del cliente. */
   createdAt: string;
 }

@@ -34,6 +34,11 @@ model Company {
   telefono         String?
   /** Notas libres del SuperAdmin sobre el cliente (seguimiento comercial, motivo de baja, etc.). */
   notas            String?
+  /** Ubicación del local para el geofencing de fichaje. Si son null, no se exige ubicación. */
+  latitud          Float?
+  longitud         Float?
+  /** Radio permitido (metros) alrededor de latitud/longitud para poder fichar. */
+  radioMetros      Int?      @default(10)
   createdAt        DateTime  @default(now())
 
   employees        Employee[]
