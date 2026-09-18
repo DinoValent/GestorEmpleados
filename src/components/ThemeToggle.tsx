@@ -24,8 +24,26 @@ function getServerSnapshot() {
 export default function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const dark = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  function toggle() {
-    applyTheme(!dark);
+  function toggle(event: React.MouseEvent<HTMLButtonElement>) {
+    const root = document.documentElement;
+    const rect = event.currentTarget.getBoundingClientRect();
+    root.style.setProperty("--theme-toggle-x", `${rect.left + rect.width / 2}px`);
+    root.style.setProperty("--theme-toggle-y", `${rect.top + rect.height / 2}px`);
+
+    const next = !dark;
+    if (typeof document.startViewTransition === "function") {
+      root.classList.add("theme-transitioning");
+      const transition = document.startViewTransition(() => applyTheme(next));
+      // ready/updateCallbackDone/finished rechazan juntas si el navegador aborta
+      // la transición (pestaña oculta, otra transición encimada, etc.) — no es
+      // un error real, solo se pierde la animación, así que se absorben todas
+      // para que no queden promesas rechazadas sin capturar.
+      transition.ready.catch(() => {});
+      transition.updateCallbackDone.catch(() => {});
+      transition.finished.catch(() => {}).finally(() => root.classList.remove("theme-transitioning"));
+    } else {
+      applyTheme(next);
+    }
   }
 
   return (

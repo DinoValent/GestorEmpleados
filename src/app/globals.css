@@ -209,6 +209,33 @@ body {
   }
 }
 
+/* ---------- transición de tema (View Transitions API) ---------- */
+
+:root {
+  --theme-toggle-x: 100%;
+  --theme-toggle-y: 0%;
+}
+
+/* El snapshot viejo se queda quieto (sin el cross-fade por defecto) mientras
+   el círculo del nuevo tema crece por encima, naciendo desde el botón que
+   tocaste — así se ve un "reveal" en vez de un fundido genérico. */
+.theme-transitioning::view-transition-old(root) {
+  animation: none;
+}
+
+.theme-transitioning::view-transition-new(root) {
+  animation: theme-reveal 0.6s ease forwards;
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0% at var(--theme-toggle-x) var(--theme-toggle-y));
+  }
+  to {
+    clip-path: circle(150% at var(--theme-toggle-x) var(--theme-toggle-y));
+  }
+}
+
 .animate-dot-progress {
   animation-name: dot-progress;
   animation-timing-function: linear;
@@ -252,7 +279,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-page,
   .animate-pop,
-  .stagger > * {
+  .stagger > *,
+  .theme-transitioning::view-transition-old(root),
+  .theme-transitioning::view-transition-new(root) {
     animation: none !important;
   }
   * {
