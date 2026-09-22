@@ -39,7 +39,7 @@ export default async function AsistenciaPage({
             <TutorialHint
               title="Asistencia"
               short="Fichá entradas y salidas del equipo."
-              long="Desde acá el administrador registra manualmente la entrada y salida de cualquier empleado (sin necesidad de ubicación, a diferencia del autofichaje del empleado). El sistema calcula solo si llegó tarde y cuántas horas extra hizo, comparando contra su horario habitual o el turno rotativo que tenga asignado ese día. También podés corregir horarios cargados y dejar observaciones por fichaje."
+              long="Desde acá el administrador registra manualmente la entrada y salida de cualquier empleado (sin necesidad de ubicación, a diferencia del autofichaje del empleado). El sistema calcula solo si llegó tarde y cuántas horas extra hizo, comparando contra su horario habitual o el turno rotativo que tenga asignado ese día. Si alguien fichó tarde por error (por ejemplo, se olvidó y fichó recién una hora después de llegar), corregí la hora de Entrada por la real y guardá — 'Llegada tarde' y las horas se recalculan solas, no hace falta tocar nada más. Usá Observaciones para dejar aclarado el motivo del cambio."
             />
           </h1>
           <p className="mt-1 text-slate-500">
